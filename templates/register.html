@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register — CGPA Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { font-family: 'Outfit', sans-serif; background: #060a14; color: #d8e4ff; }
+
+    .grid-bg {
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(79,142,255,.038) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(79,142,255,.038) 1px, transparent 1px);
+      background-size: 38px 38px;
+      mask-image: radial-gradient(ellipse 90% 90% at 50% 50%, black 10%, transparent 100%);
+      pointer-events: none;
+    }
+    .glow {
+      position: fixed; inset: 0; pointer-events: none; z-index: 1;
+      background: radial-gradient(ellipse 58% 42% at 50% 0%, rgba(79,142,255,.1) 0%, transparent 100%);
+    }
+
+    /* ── page layout ── */
+    .page {
+      min-height: 100vh;
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: 32px 16px 48px;
+      background: linear-gradient(160deg, #060a1c 0%, #060a14 55%, #08060f 100%);
+      position: relative;
+    }
+
+    /* ── card ── */
+    .card {
+      position: relative; z-index: 10;
+      width: 100%; max-width: 480px;
+      background: rgba(9,15,32,.88);
+      border: 1px solid rgba(79,142,255,.12);
+      border-radius: 20px;
+      backdrop-filter: blur(28px);
+      box-shadow: 0 0 0 1px rgba(255,255,255,.03), 0 30px 80px rgba(0,0,0,.75), inset 0 1px 0 rgba(255,255,255,.04);
+      padding: 34px 32px 30px;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute; inset: 0; border-radius: 20px; pointer-events: none;
+      background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(79,142,255,.16) 0%, transparent 100%);
+    }
+
+    /* ── status ── */
+    .status { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 18px; }
+    .sdot {
+      width: 6px; height: 6px; border-radius: 50%; background: #22c55e;
+      box-shadow: 0 0 7px rgba(34,197,94,.7);
+      animation: pulse 2.2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.7)} }
+    .status-txt { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: .18em; text-transform: uppercase; color: rgba(34,197,94,.65); }
+
+    /* ── header ── */
+    .eyebrow {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+      letter-spacing: .2em; text-transform: uppercase;
+      color: rgba(110,138,210,.45); margin-bottom: 10px;
+    }
+    .eyebrow hr { border: none; height: 1px; width: 20px; background: rgba(79,142,255,.2); }
+    h1 { font-size: 23px; font-weight: 700; letter-spacing: -.4px; color: #e6eeff; text-align: center; margin-bottom: 5px; }
+    .subtitle { font-size: 13px; color: rgba(120,145,205,.5); font-weight: 300; text-align: center; margin-bottom: 24px; }
+
+    /* ── section label ── */
+    .section-label {
+      display: flex; align-items: center; gap: 10px;
+      margin: 20px 0 12px;
+    }
+    .section-label span {
+      font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+      letter-spacing: .18em; text-transform: uppercase;
+      color: rgba(110,138,195,.45); font-weight: 500; white-space: nowrap;
+    }
+    .section-label hr { flex: 1; border: none; height: 1px; background: rgba(79,142,255,.1); }
+
+    /* ── grid for 2-column rows ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 480px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    /* ── form fields ── */
+    .field { margin-bottom: 14px; }
+    label {
+      display: block;
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      font-weight: 500; letter-spacing: .1em; text-transform: uppercase;
+      color: rgba(115,138,195,.5); margin-bottom: 7px;
+      transition: color .3s;
+    }
+    .field:focus-within label { color: rgba(100,160,255,.9); }
+
+    .input-wrap { position: relative; }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    select {
+      display: block; width: 100%;
+      padding: 12px 15px;
+      background: rgba(255,255,255,.03);
+      border: 1.5px solid rgba(79,142,255,.1);
+      border-radius: 10px; outline: none;
+      color: #d8e4ff;
+      font-family: 'JetBrains Mono', monospace; font-size: 13.5px; letter-spacing: .03em;
+      transition: all .32s ease;
+    }
+    input[type="password"] { padding-right: 44px; }
+    select { appearance: none; -webkit-appearance: none; padding-right: 36px; cursor: pointer; font-family: 'Outfit', sans-serif; }
+    select option { background: #0d1630; color: #d8e4ff; }
+    select:invalid, select option[value=""] { color: rgba(140,160,210,.35); }
+
+    input::placeholder { color: rgba(140,160,210,.35); }
+    input:focus, select:focus {
+      border-color: rgba(79,142,255,.58);
+      background: rgba(79,142,255,.055);
+      box-shadow: 0 0 0 3px rgba(79,142,255,.13), 0 0 20px rgba(79,142,255,.08);
+    }
+    input:-webkit-autofill, input:-webkit-autofill:focus {
+      -webkit-box-shadow: 0 0 0 40px #0b1228 inset !important;
+      -webkit-text-fill-color: #d8e4ff !important;
+    }
+
+    /* ── field errors ── */
+    .field-error input,
+    .field-error select { border-color: rgba(239,68,68,.6) !important; background: rgba(239,68,68,.04) !important; }
+    .err-msg { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #ef4444; margin-top: 5px; }
+
+    /* helper text */
+    .helper { font-size: 11px; color: rgba(115,138,195,.42); margin-top: 5px; }
+
+    /* eye toggle */
+    .eye-btn {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; padding: 3px;
+      color: rgba(115,138,195,.45); display: flex; line-height: 0;
+      transition: color .22s;
+    }
+    .eye-btn:hover { color: rgba(100,160,255,.85); }
+
+    /* ── strength bar ── */
+    .strength-bar { display: flex; gap: 5px; margin: 8px 0 4px; }
+    .strength-bar div { flex: 1; height: 3px; border-radius: 2px; background: rgba(79,142,255,.1); transition: background .35s; }
+    .strength-txt { font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-bottom: 8px; transition: color .35s; }
+
+    /* ── primary button ── */
+    .btn-primary {
+      display: block; width: 100%; padding: 14px 20px;
+      background: linear-gradient(135deg, #2959d4 0%, #4f8eff 65%, #6ba4ff 100%);
+      border: none; border-radius: 10px; cursor: pointer;
+      color: #fff; font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 600;
+      letter-spacing: .06em; margin-top: 6px;
+      box-shadow: 0 4px 22px rgba(79,142,255,.3);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .btn-primary:hover { transform: scale(1.018); box-shadow: 0 8px 34px rgba(79,142,255,.48); }
+    .btn-primary:active { transform: scale(.978); }
+
+    /* ── divider ── */
+    .divider { display: flex; align-items: center; gap: 12px; margin: 20px 0 14px; }
+    .divider hr { flex: 1; border: none; height: 1px; background: rgba(79,142,255,.1); }
+    .divider span { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase; color: rgba(110,138,205,.35); }
+
+    /* ── footer ── */
+    .foot-txt { font-size: 12.5px; color: rgba(115,138,205,.45); text-align: center; }
+    .foot-link { background: none; border: none; cursor: pointer; color: #4f8eff; font-weight: 600; font-size: 12.5px; font-family: 'Outfit', sans-serif; padding: 0; }
+  </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="glow"></div>
+
+<div class="page">
+  <div class="card">
+
+    <div class="status">
+      <div class="sdot"></div>
+      <span class="status-txt">System Online</span>
+    </div>
+
+    <div class="eyebrow"><hr> Academic Portal · New Account <hr></div>
+    <h1>Create Your Account</h1>
+    <p class="subtitle">Fill in your details to access the CGPA system</p>
+
+    <form method="POST" action="/register" novalidate>
+
+      <!-- ── PERSONAL INFO ───────────────────────────────── -->
+      <div class="section-label"><span>Personal info</span><hr></div>
+
+      <div class="field {% if errors and errors.full_name %}field-error{% endif %}">
+        <label for="full_name">Full Name</label>
+        <input type="text" id="full_name" name="full_name"
+               placeholder="e.g. Adaeze Okonkwo"
+               value="{{ form.full_name if form else '' }}"
+               autocomplete="name"/>
+        {% if errors and errors.full_name %}
+        <p class="err-msg">↑ {{ errors.full_name }}</p>
+        {% endif %}
+      </div>
+
+      <div class="grid-2">
+        <div class="field {% if errors and errors.matric %}field-error{% endif %}">
+          <label for="matric">Matric Number</label>
+          <input type="text" id="matric" name="matric"
+                 placeholder="e.g. U21CS1042"
+                 value="{{ form.matric if form else '' }}"
+                 autocomplete="username"/>
+          {% if errors and errors.matric %}
+          <p class="err-msg">↑ {{ errors.matric }}</p>
+          {% endif %}
+        </div>
+
+        <div class="field {% if errors and errors.email %}field-error{% endif %}">
+          <label for="email">Email Address</label>
+          <input type="email" id="email" name="email"
+                 placeholder="you@university.edu.ng"
+                 value="{{ form.email if form else '' }}"
+                 autocomplete="email"/>
+          {% if errors and errors.email %}
+          <p class="err-msg">↑ {{ errors.email }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- ── ACADEMIC INFO ───────────────────────────────── -->
+      <div class="section-label"><span>Academic info</span><hr></div>
+
+      <div class="grid-2">
+        <div class="field {% if errors and errors.faculty %}field-error{% endif %}">
+          <label for="faculty">Faculty</label>
+          <div class="input-wrap">
+            <input type="text" id="faculty" name="faculty"
+                   placeholder="e.g. Faculty of Science"
+                   value="{{ form.faculty if form else '' }}"/>
+          </div>
+          {% if errors and errors.faculty %}
+          <p class="err-msg">↑ {{ errors.faculty }}</p>
+          {% endif %}
+        </div>
+
+        <div class="field {% if errors and errors.department %}field-error{% endif %}">
+          <label for="department">Department</label>
+          <input type="text" id="department" name="department"
+                 placeholder="e.g. Computer Science"
+                 value="{{ form.department if form else '' }}"/>
+          {% if errors and errors.department %}
+          <p class="err-msg">↑ {{ errors.department }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="field {% if errors and errors.programme %}field-error{% endif %}">
+        <label for="programme">Programme</label>
+        <input type="text" id="programme" name="programme"
+               placeholder="e.g. B.Sc Computer Science"
+               value="{{ form.programme if form else '' }}"/>
+        {% if errors and errors.programme %}
+        <p class="err-msg">↑ {{ errors.programme }}</p>
+        {% else %}
+        <p class="helper">Enter your full programme name as on your admission letter.</p>
+        {% endif %}
+      </div>
+
+      <!-- ── SECURITY ────────────────────────────────────── -->
+      <div class="section-label"><span>Security</span><hr></div>
+
+      <div class="field {% if errors and errors.password %}field-error{% endif %}">
+        <label for="password">Password</label>
+        <div class="input-wrap">
+          <input type="password" id="password" name="password"
+                 placeholder="Min. 8 characters"
+                 autocomplete="new-password"
+                 oninput="updateStrength(this.value)"/>
+          <button type="button" class="eye-btn" onclick="togglePw(this,'password')" title="Show/hide">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+        {% if errors and errors.password %}
+        <p class="err-msg">↑ {{ errors.password }}</p>
+        {% endif %}
+        <!-- strength bar (hidden until user types) -->
+        <div id="strength-wrap" style="display:none">
+          <div class="strength-bar">
+            <div id="s1"></div><div id="s2"></div>
+            <div id="s3"></div><div id="s4"></div>
+          </div>
+          <p class="strength-txt" id="strength-lbl"></p>
+        </div>
+      </div>
+
+      <div class="field {% if errors and errors.confirm_pw %}field-error{% endif %}">
+        <label for="confirm_pw">Confirm Password</label>
+        <div class="input-wrap">
+          <input type="password" id="confirm_pw" name="confirm_pw"
+                 placeholder="Re-enter your password"
+                 autocomplete="new-password"/>
+          <button type="button" class="eye-btn" onclick="togglePw(this,'confirm_pw')" title="Show/hide">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+        {% if errors and errors.confirm_pw %}
+        <p class="err-msg">↑ {{ errors.confirm_pw }}</p>
+        {% endif %}
+      </div>
+
+      <!-- ── SUBMIT ──────────────────────────────────────── -->
+      <button type="submit" class="btn-primary">Create Account</button>
+
+    </form>
+
+    <div class="divider"><hr><span>already registered?</span><hr></div>
+
+    <p class="foot-txt">
+      Already have an account?
+      <button class="foot-link" onclick="window.location.href='/login'">Sign in</button>
+    </p>
+
+  </div>
+</div>
+
+<script>
+  /* ── Password show/hide ── */
+  function togglePw(btn, inputId) {
+    const inp = document.getElementById(inputId);
+    inp.type  = inp.type === 'password' ? 'text' : 'password';
+    const open = inp.type === 'text';
+    btn.querySelector('svg').innerHTML = open
+      ? `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+         <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+         <line x1="1" y1="1" x2="23" y2="23"/>`
+      : `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+         <circle cx="12" cy="12" r="3"/>`;
+  }
+
+  /* ── Password strength ── */
+  function calcStrength(pw) {
+    if (!pw) return { score: 0, label: '', color: 'transparent' };
+    let s = 0;
+    if (pw.length >= 8)          s++;
+    if (pw.length >= 12)         s++;
+    if (/[A-Z]/.test(pw))        s++;
+    if (/[0-9]/.test(pw))        s++;
+    if (/[^A-Za-z0-9]/.test(pw)) s++;
+    if (s <= 1) return { score: 1, label: 'Weak',   color: '#ef4444' };
+    if (s <= 3) return { score: 2, label: 'Fair',   color: '#f59e0b' };
+    if (s <= 4) return { score: 3, label: 'Good',   color: '#3b82f6' };
+    return              { score: 4, label: 'Strong', color: '#22c55e' };
+  }
+
+  function updateStrength(pw) {
+    const wrap = document.getElementById('strength-wrap');
+    const lbl  = document.getElementById('strength-lbl');
+    if (!pw) { wrap.style.display = 'none'; return; }
+
+    wrap.style.display = 'block';
+    const str = calcStrength(pw);
+
+    ['s1','s2','s3','s4'].forEach((id, i) => {
+      document.getElementById(id).style.background =
+        i < str.score ? str.color : 'rgba(79,142,255,0.1)';
+    });
+
+    lbl.style.color = str.color;
+    lbl.textContent = `Strength: ${str.label}${str.score < 3 ? ' — add uppercase, numbers or symbols' : ''}`;
+  }
+
+  /* ── Client-side validation (backup — server also validates) ── */
+  document.querySelector('form').addEventListener('submit', function(e) {
+    const pw  = document.getElementById('password').value;
+    const cpw = document.getElementById('confirm_pw').value;
+    if (pw !== cpw) {
+      e.preventDefault();
+      alert('Passwords do not match. Please check and try again.');
+    }
+  });
+</script>
+</body>
+</html>

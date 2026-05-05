@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CGPACalc — Academic Performance Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #060a14;
+      --bg2: #080d1c;
+      --surface: rgba(9,15,32,.82);
+      --border: rgba(79,142,255,.13);
+      --blue: #4f8eff;
+      --blue-dim: rgba(79,142,255,.55);
+      --text: #d8e4ff;
+      --text-dim: rgba(160,185,235,.5);
+      --text-faint: rgba(110,138,210,.35);
+      --green: #22c55e;
+      --accent: #7fb3ff;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ── GRID BG ── */
+    .grid-bg {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(79,142,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(79,142,255,.03) 1px, transparent 1px);
+      background-size: 44px 44px;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 48px;
+      background: rgba(6,10,20,.75);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(79,142,255,.07);
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none;
+    }
+    .nav-logo-icon {
+      width: 34px; height: 34px;
+      background: linear-gradient(135deg, #2959d4, #4f8eff);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; color: #fff;
+      box-shadow: 0 4px 18px rgba(79,142,255,.35);
+    }
+    .nav-logo-text {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800; font-size: 17px; color: #e6eeff;
+      letter-spacing: -.3px;
+    }
+    .nav-logo-text em { font-style: normal; color: var(--blue); }
+    .nav-links { display: flex; align-items: center; gap: 8px; }
+    .nav-link {
+      padding: 9px 18px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px; font-weight: 500;
+      color: var(--text-dim);
+      text-decoration: none; border-radius: 8px;
+      transition: color .2s, background .2s;
+    }
+    .nav-link:hover { color: var(--text); background: rgba(79,142,255,.07); }
+    .nav-cta {
+      padding: 9px 22px;
+      background: linear-gradient(135deg, #2959d4, #4f8eff);
+      border-radius: 8px; color: #fff;
+      font-size: 14px; font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 3px 16px rgba(79,142,255,.3);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .nav-cta:hover { transform: scale(1.03); box-shadow: 0 6px 28px rgba(79,142,255,.5); }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 120px 24px 80px;
+      position: relative; text-align: center;
+      background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(79,142,255,.13) 0%, transparent 70%);
+    }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 7px 16px;
+      background: rgba(79,142,255,.08);
+      border: 1px solid rgba(79,142,255,.2);
+      border-radius: 50px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; letter-spacing: .15em; text-transform: uppercase;
+      color: rgba(130,170,255,.7);
+      margin-bottom: 32px;
+      animation: fadeUp .7s ease both;
+    }
+    .hero-badge-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 7px rgba(34,197,94,.8);
+      animation: pulse 2.2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.3;transform:scale(.6)} }
+
+    .hero-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(42px, 7vw, 82px);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -2px;
+      color: #e6eeff;
+      margin-bottom: 24px;
+      animation: fadeUp .7s .1s ease both;
+    }
+    .hero-title .accent { color: var(--blue); }
+    .hero-title .grad {
+      background: linear-gradient(90deg, #4f8eff 0%, #a5c8ff 50%, #4f8eff 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: shimmer 4s linear infinite;
+    }
+    @keyframes shimmer { to { background-position: 200% center; } }
+
+    .hero-sub {
+      max-width: 560px;
+      font-size: 18px; font-weight: 300;
+      color: var(--text-dim);
+      line-height: 1.65;
+      margin-bottom: 44px;
+      animation: fadeUp .7s .2s ease both;
+    }
+
+    .hero-actions {
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center;
+      animation: fadeUp .7s .3s ease both;
+    }
+    .btn-hero-primary {
+      display: inline-flex; align-items: center; gap: 9px;
+      padding: 16px 32px;
+      background: linear-gradient(135deg, #2959d4 0%, #4f8eff 65%, #6ba4ff 100%);
+      border-radius: 12px; color: #fff;
+      font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700;
+      text-decoration: none; letter-spacing: .01em;
+      box-shadow: 0 6px 30px rgba(79,142,255,.4);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .btn-hero-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 44px rgba(79,142,255,.55); }
+    .btn-hero-ghost {
+      display: inline-flex; align-items: center; gap: 9px;
+      padding: 16px 28px;
+      border: 1.5px solid rgba(79,142,255,.2);
+      border-radius: 12px; color: var(--text-dim);
+      font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 600;
+      text-decoration: none;
+      transition: border-color .2s, color .2s, background .2s;
+    }
+    .btn-hero-ghost:hover { border-color: var(--blue-dim); color: var(--text); background: rgba(79,142,255,.06); }
+
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── FLOATING SCORE CARD ── */
+    .hero-visual {
+      margin-top: 72px;
+      animation: fadeUp .7s .45s ease both;
+      display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+    }
+    .score-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 24px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 20px 60px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.04);
+      min-width: 160px; text-align: center;
+      transition: transform .25s, box-shadow .25s;
+    }
+    .score-card:hover { transform: translateY(-5px); box-shadow: 0 28px 70px rgba(0,0,0,.7), 0 0 0 1px rgba(79,142,255,.15); }
+    .sc-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px; letter-spacing: .18em; text-transform: uppercase;
+      color: var(--text-faint); margin-bottom: 10px;
+    }
+    .sc-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 38px; font-weight: 800;
+      color: #e6eeff; line-height: 1;
+    }
+    .sc-value.blue { color: var(--blue); }
+    .sc-value.green { color: var(--green); }
+    .sc-sub { font-size: 12px; color: var(--text-faint); margin-top: 5px; }
+    .sc-pill {
+      display: inline-block; margin-top: 10px;
+      padding: 4px 12px; border-radius: 50px; font-size: 11px; font-weight: 600;
+      font-family: 'JetBrains Mono', monospace; letter-spacing: .05em;
+    }
+    .pill-gold { background: rgba(251,191,36,.1); color: #fbbf24; border: 1px solid rgba(251,191,36,.2); }
+    .pill-blue { background: rgba(79,142,255,.1); color: var(--blue); border: 1px solid rgba(79,142,255,.2); }
+    .pill-green { background: rgba(34,197,94,.1); color: var(--green); border: 1px solid rgba(34,197,94,.2); }
+
+    /* ── SECTION SHARED ── */
+    section {
+      position: relative; z-index: 2;
+      padding: 100px 24px;
+    }
+    .section-inner {
+      max-width: 1100px; margin: 0 auto;
+    }
+    .section-eyebrow {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      letter-spacing: .2em; text-transform: uppercase;
+      color: var(--text-faint); margin-bottom: 16px;
+    }
+    .section-eyebrow hr { border: none; height: 1px; width: 24px; background: var(--border); }
+    .section-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(30px, 4vw, 46px); font-weight: 800;
+      color: #e6eeff; text-align: center; letter-spacing: -.8px;
+      margin-bottom: 14px;
+    }
+    .section-desc {
+      font-size: 16px; color: var(--text-dim); font-weight: 300;
+      text-align: center; max-width: 520px; margin: 0 auto 64px;
+      line-height: 1.7;
+    }
+
+    /* ── HOW IT WORKS ── */
+    #how { background: linear-gradient(180deg, transparent 0%, rgba(79,142,255,.03) 50%, transparent 100%); }
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+    }
+    .step-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 30px 24px;
+      position: relative; overflow: hidden;
+      transition: transform .25s, box-shadow .25s;
+    }
+    .step-card::before {
+      content: '';
+      position: absolute; inset: 0; border-radius: 18px;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(79,142,255,.08) 0%, transparent 100%);
+      pointer-events: none;
+    }
+    .step-card:hover { transform: translateY(-6px); box-shadow: 0 24px 60px rgba(0,0,0,.5), 0 0 0 1px rgba(79,142,255,.15); }
+    .step-num {
+      font-family: 'Syne', sans-serif;
+      font-size: 52px; font-weight: 800;
+      color: rgba(79,142,255,.1); line-height: 1;
+      margin-bottom: 14px;
+    }
+    .step-icon {
+      width: 44px; height: 44px;
+      background: rgba(79,142,255,.1);
+      border: 1px solid rgba(79,142,255,.2);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; margin-bottom: 18px;
+    }
+    .step-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 17px; font-weight: 700; color: #e6eeff;
+      margin-bottom: 8px;
+    }
+    .step-desc { font-size: 13.5px; color: var(--text-dim); line-height: 1.65; }
+
+    /* ── FEATURES ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      display: flex; gap: 18px;
+      transition: border-color .2s, background .2s;
+    }
+    .feature-card:hover { border-color: rgba(79,142,255,.28); background: rgba(9,15,32,.95); }
+    .feat-icon {
+      width: 46px; height: 46px; flex-shrink: 0;
+      background: rgba(79,142,255,.08);
+      border: 1px solid rgba(79,142,255,.15);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+    }
+    .feat-body h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 16px; font-weight: 700; color: #e6eeff;
+      margin-bottom: 6px;
+    }
+    .feat-body p { font-size: 13.5px; color: var(--text-dim); line-height: 1.6; }
+
+    /* ── GRADING TABLE ── */
+    #grading { background: rgba(9,15,32,.5); }
+    .grade-table-wrap { overflow-x: auto; }
+    .grade-table {
+      width: 100%; max-width: 700px; margin: 0 auto;
+      border-collapse: collapse;
+    }
+    .grade-table th {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; letter-spacing: .15em; text-transform: uppercase;
+      color: var(--text-faint); padding: 10px 16px;
+      border-bottom: 1px solid var(--border); text-align: left;
+    }
+    .grade-table td {
+      padding: 13px 16px; font-size: 14px;
+      border-bottom: 1px solid rgba(79,142,255,.06);
+      color: var(--text-dim);
+    }
+    .grade-table tr:last-child td { border-bottom: none; }
+    .grade-table tr:hover td { background: rgba(79,142,255,.04); }
+    .grade-pill {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 34px; height: 34px; border-radius: 8px;
+      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 14px;
+    }
+    .g-A  { background: rgba(34,197,94,.12);  color: #4ade80;  border: 1px solid rgba(34,197,94,.25); }
+    .g-B  { background: rgba(79,142,255,.12); color: #7fb3ff;  border: 1px solid rgba(79,142,255,.25); }
+    .g-C  { background: rgba(251,191,36,.1);  color: #fbbf24;  border: 1px solid rgba(251,191,36,.2); }
+    .g-D  { background: rgba(249,115,22,.1);  color: #fb923c;  border: 1px solid rgba(249,115,22,.2); }
+    .g-E  { background: rgba(239,68,68,.1);   color: #f87171;  border: 1px solid rgba(239,68,68,.2); }
+    .g-F  { background: rgba(239,68,68,.1);   color: #ef4444;  border: 1px solid rgba(239,68,68,.2); }
+
+    /* ── CTA SECTION ── */
+    .cta-section {
+      text-align: center;
+      background: radial-gradient(ellipse 70% 80% at 50% 50%, rgba(79,142,255,.07) 0%, transparent 70%);
+      border-top: 1px solid rgba(79,142,255,.07);
+      border-bottom: 1px solid rgba(79,142,255,.07);
+    }
+    .cta-section .section-title { font-size: clamp(28px, 5vw, 52px); }
+    .cta-actions { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
+    .cta-stat-row {
+      display: flex; justify-content: center; gap: 40px; flex-wrap: wrap;
+      margin-top: 56px; padding-top: 40px;
+      border-top: 1px solid rgba(79,142,255,.08);
+    }
+    .cta-stat { text-align: center; }
+    .cta-stat-num {
+      font-family: 'Syne', sans-serif; font-size: 38px; font-weight: 800;
+      color: var(--blue);
+    }
+    .cta-stat-lbl { font-size: 13px; color: var(--text-faint); margin-top: 4px; }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative; z-index: 2;
+      padding: 32px 48px;
+      border-top: 1px solid rgba(79,142,255,.07);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 12px;
+    }
+    .foot-logo {
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px;
+      color: rgba(160,185,235,.4);
+    }
+    .foot-logo em { color: var(--blue); font-style: normal; }
+    .foot-links { display: flex; gap: 20px; }
+    .foot-links a {
+      font-size: 13px; color: var(--text-faint);
+      text-decoration: none; transition: color .2s;
+    }
+    .foot-links a:hover { color: var(--text-dim); }
+    .foot-copy { font-size: 12px; color: var(--text-faint); }
+
+    /* ── MOBILE ── */
+    @media (max-width: 768px) {
+      nav { padding: 16px 20px; }
+      .nav-links .nav-link { display: none; }
+      .hero { padding: 100px 20px 64px; }
+      .hero-title { letter-spacing: -1px; }
+      footer { padding: 24px 20px; flex-direction: column; text-align: center; }
+      .foot-links { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<!-- ── NAV ── -->
+<nav>
+  <a href="/" class="nav-logo">
+    <div class="nav-logo-icon">◈</div>
+    <span class="nav-logo-text">CGPA<em>Calc</em></span>
+  </a>
+  <div class="nav-links">
+    <a href="#how" class="nav-link">How It Works</a>
+    <a href="#features" class="nav-link">Features</a>
+    <a href="#grading" class="nav-link">Grading Scale</a>
+    <a href="/login" class="nav-cta">Sign In →</a>
+  </div>
+</nav>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="hero-badge">
+    <div class="hero-badge-dot"></div>
+    5-Point Scale · Nigerian University Standard
+  </div>
+
+  <h1 class="hero-title">
+    Track Your Academic<br>
+    <span class="grad">Performance Precisely</span>
+  </h1>
+
+  <p class="hero-sub">
+    Compute your CGPA across multiple semesters with accuracy.
+    Input your courses, scores, and credit units — get your results instantly.
+  </p>
+
+  <div class="hero-actions">
+    <a href="/register" class="btn-hero-primary">
+      Get Started Free <span>→</span>
+    </a>
+    <a href="#how" class="btn-hero-ghost">
+      See How It Works
+    </a>
+  </div>
+
+  <!-- Floating demo cards -->
+  <div class="hero-visual">
+    <div class="score-card">
+      <div class="sc-label">Semester 1</div>
+      <div class="sc-value blue">4.73</div>
+      <div class="sc-sub">GPA / 5.00</div>
+      <div class="sc-pill pill-blue">18 units</div>
+    </div>
+    <div class="score-card">
+      <div class="sc-label">CGPA</div>
+      <div class="sc-value" style="color:#e6eeff">4.61</div>
+      <div class="sc-sub">/ 5.00 · 4 Semesters</div>
+      <div class="sc-pill pill-gold">First Class</div>
+    </div>
+    <div class="score-card">
+      <div class="sc-label">Semester 4</div>
+      <div class="sc-value green">4.50</div>
+      <div class="sc-sub">GPA / 5.00</div>
+      <div class="sc-pill pill-green">21 units</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── HOW IT WORKS ── -->
+<section id="how">
+  <div class="section-inner">
+    <div class="section-eyebrow"><hr>Process<hr></div>
+    <h2 class="section-title">Four Simple Steps</h2>
+    <p class="section-desc">
+      From your name to your final CGPA — the entire workflow takes less than 3 minutes.
+    </p>
+
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num">01</div>
+        <div class="step-icon">👤</div>
+        <div class="step-title">Enter Your Info</div>
+        <p class="step-desc">Provide your name, matric number, programme, department, and faculty details.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">02</div>
+        <div class="step-icon">📅</div>
+        <div class="step-title">Choose Semesters</div>
+        <p class="step-desc">Tell us how many semesters you've completed and how many courses per semester.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">03</div>
+        <div class="step-icon">📝</div>
+        <div class="step-title">Input Courses</div>
+        <p class="step-desc">Fill in each course code, credit units, and score. Add carryovers with one click.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">04</div>
+        <div class="step-icon">◈</div>
+        <div class="step-title">View Results</div>
+        <p class="step-desc">Instantly see your per-semester GPA, cumulative CGPA, and degree classification.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FEATURES ── -->
+<section id="features">
+  <div class="section-inner">
+    <div class="section-eyebrow"><hr>Features<hr></div>
+    <h2 class="section-title">Everything You Need</h2>
+    <p class="section-desc">Designed for Nigerian university students on the 5-point grading scale.</p>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feat-icon">⚡</div>
+        <div class="feat-body">
+          <h3>Instant Calculation</h3>
+          <p>Grades and weighted points computed the moment you submit. No waiting, no page reloads mid-form.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feat-icon">📊</div>
+        <div class="feat-body">
+          <h3>Semester Breakdown</h3>
+          <p>See your GPA for each individual semester plus the running cumulative total across all semesters.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feat-icon">➕</div>
+        <div class="feat-body">
+          <h3>Dynamic Course Rows</h3>
+          <p>Add carryover courses or extra units on the fly — the form adapts without losing your existing entries.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feat-icon">🏆</div>
+        <div class="feat-body">
+          <h3>Degree Classification</h3>
+          <p>Automatically determined: First Class, Second Class Upper/Lower, Third Class, Pass, or Fail.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feat-icon">🔒</div>
+        <div class="feat-body">
+          <h3>Secure Student Accounts</h3>
+          <p>Register with your matric number. Your records are private and protected by password authentication.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feat-icon">📱</div>
+        <div class="feat-body">
+          <h3>Mobile Friendly</h3>
+          <p>Fully responsive — use it on your phone between classes or on your laptop at home.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── GRADING SCALE ── -->
+<section id="grading">
+  <div class="section-inner">
+    <div class="section-eyebrow"><hr>Reference<hr></div>
+    <h2 class="section-title">5-Point Grading Scale</h2>
+    <p class="section-desc">The Nigerian university standard used for all calculations on this platform.</p>
+
+    <div class="grade-table-wrap">
+      <table class="grade-table">
+        <thead>
+          <tr>
+            <th>Grade</th>
+            <th>Score Range</th>
+            <th>Grade Point</th>
+            <th>Remark</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="grade-pill g-A">A</span></td>
+            <td>70 – 100</td>
+            <td><strong style="color:#4ade80">5.0</strong></td>
+            <td>Excellent</td>
+          </tr>
+          <tr>
+            <td><span class="grade-pill g-B">B</span></td>
+            <td>60 – 69</td>
+            <td><strong style="color:#7fb3ff">4.0</strong></td>
+            <td>Very Good</td>
+          </tr>
+          <tr>
+            <td><span class="grade-pill g-C">C</span></td>
+            <td>50 – 59</td>
+            <td><strong style="color:#fbbf24">3.0</strong></td>
+            <td>Good</td>
+          </tr>
+          <tr>
+            <td><span class="grade-pill g-D">D</span></td>
+            <td>45 – 49</td>
+            <td><strong style="color:#fb923c">2.0</strong></td>
+            <td>Pass</td>
+          </tr>
+          <tr>
+            <td><span class="grade-pill g-E">E</span></td>
+            <td>40 – 44</td>
+            <td><strong style="color:#f87171">1.0</strong></td>
+            <td>Poor Pass</td>
+          </tr>
+          <tr>
+            <td><span class="grade-pill g-F">F</span></td>
+            <td>0 – 39</td>
+            <td><strong style="color:#ef4444">0.0</strong></td>
+            <td>Fail</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Classification key -->
+    <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:40px;">
+      <div class="score-card" style="min-width:140px; padding:16px 20px;">
+        <div class="sc-label">First Class</div>
+        <div class="sc-value" style="font-size:22px; color:#fbbf24">4.50 – 5.00</div>
+      </div>
+      <div class="score-card" style="min-width:140px; padding:16px 20px;">
+        <div class="sc-label">2nd Class Upper</div>
+        <div class="sc-value" style="font-size:22px; color:#7fb3ff">3.50 – 4.49</div>
+      </div>
+      <div class="score-card" style="min-width:140px; padding:16px 20px;">
+        <div class="sc-label">2nd Class Lower</div>
+        <div class="sc-value" style="font-size:22px; color:#a78bfa">2.40 – 3.49</div>
+      </div>
+      <div class="score-card" style="min-width:140px; padding:16px 20px;">
+        <div class="sc-label">Third Class</div>
+        <div class="sc-value" style="font-size:22px; color:#fb923c">1.50 – 2.39</div>
+      </div>
+      <div class="score-card" style="min-width:140px; padding:16px 20px;">
+        <div class="sc-label">Pass</div>
+        <div class="sc-value" style="font-size:22px; color:#f87171">1.00 – 1.49</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<section class="cta-section">
+  <div class="section-inner">
+    <div class="section-eyebrow"><hr>Get Started<hr></div>
+    <h2 class="section-title">Know Where You Stand,<br>Every Semester</h2>
+    <p class="section-desc" style="margin-bottom:36px">
+      Create a free account and start tracking your academic performance today.
+    </p>
+    <div class="cta-actions">
+      <a href="/register" class="btn-hero-primary">Create Free Account →</a>
+      <a href="/login" class="btn-hero-ghost">Sign In</a>
+    </div>
+
+    <div class="cta-stat-row">
+      <div class="cta-stat">
+        <div class="cta-stat-num">5-pt</div>
+        <div class="cta-stat-lbl">Nigerian grading scale</div>
+      </div>
+      <div class="cta-stat">
+        <div class="cta-stat-num">20+</div>
+        <div class="cta-stat-lbl">Semesters supported</div>
+      </div>
+      <div class="cta-stat">
+        <div class="cta-stat-num">∞</div>
+        <div class="cta-stat-lbl">Courses per semester</div>
+      </div>
+      <div class="cta-stat">
+        <div class="cta-stat-num">Free</div>
+        <div class="cta-stat-lbl">Always</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="foot-logo">CGPA<em>Calc</em></div>
+  <div class="foot-links">
+    <a href="#how">How It Works</a>
+    <a href="#grading">Grading Scale</a>
+    <a href="/login">Sign In</a>
+    <a href="/register">Register</a>
+  </div>
+  <div class="foot-copy">Built with Flask · 5-Point Scale</div>
+</footer>
+
+</body>
+</html>

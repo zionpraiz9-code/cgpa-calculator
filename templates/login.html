@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sign In — CGPA Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; font-family: 'Outfit', sans-serif; background: #060a14; color: #d8e4ff; }
+
+    /* ── grid background ── */
+    .grid-bg {
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(79,142,255,.038) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(79,142,255,.038) 1px, transparent 1px);
+      background-size: 38px 38px;
+      mask-image: radial-gradient(ellipse 90% 90% at 50% 50%, black 10%, transparent 100%);
+      pointer-events: none;
+    }
+
+    /* ── layout ── */
+    .page {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 32px 16px;
+      background: linear-gradient(160deg, #060a1c 0%, #060a14 55%, #08060f 100%);
+      position: relative;
+    }
+    .glow {
+      position: fixed; inset: 0; pointer-events: none; z-index: 1;
+      background: radial-gradient(ellipse 58% 42% at 50% 0%, rgba(79,142,255,.11) 0%, transparent 100%);
+    }
+
+    /* ── card ── */
+    .card {
+      position: relative; z-index: 10;
+      width: 100%; max-width: 420px;
+      background: rgba(9,15,32,.88);
+      border: 1px solid rgba(79,142,255,.12);
+      border-radius: 20px;
+      backdrop-filter: blur(28px);
+      box-shadow: 0 0 0 1px rgba(255,255,255,.03), 0 30px 80px rgba(0,0,0,.75), inset 0 1px 0 rgba(255,255,255,.04);
+      padding: 36px 32px 30px;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute; inset: 0; border-radius: 20px; pointer-events: none;
+      background: radial-gradient(ellipse 75% 55% at 50% 0%, rgba(79,142,255,.18) 0%, transparent 100%);
+    }
+
+    /* ── header ── */
+    .eyebrow {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+      letter-spacing: .2em; text-transform: uppercase;
+      color: rgba(110,138,210,.45); margin-bottom: 10px;
+    }
+    .eyebrow hr { border: none; height: 1px; width: 20px; background: rgba(79,142,255,.2); }
+    h1 { font-size: 24px; font-weight: 700; letter-spacing: -.4px; color: #e6eeff; text-align: center; margin-bottom: 5px; }
+    .subtitle { font-size: 13px; color: rgba(120,145,205,.5); font-weight: 300; text-align: center; margin-bottom: 22px; }
+
+    /* ── status dot ── */
+    .status { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 20px; }
+    .sdot {
+      width: 6px; height: 6px; border-radius: 50%; background: #22c55e;
+      box-shadow: 0 0 7px rgba(34,197,94,.7);
+      animation: pulse 2.2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.7)} }
+    .status-txt { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: .18em; text-transform: uppercase; color: rgba(34,197,94,.65); }
+
+    /* ── alerts ── */
+    .alert {
+      padding: 11px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 16px;
+      border: 1px solid;
+    }
+    .alert-error   { background: rgba(239,68,68,.08);  border-color: rgba(239,68,68,.35);  color: #fca5a5; }
+    .alert-success { background: rgba(34,197,94,.08);  border-color: rgba(34,197,94,.35);  color: #86efac; }
+
+    /* ── form ── */
+    .field { margin-bottom: 16px; }
+    label {
+      display: block; font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; font-weight: 500; letter-spacing: .1em;
+      text-transform: uppercase; color: rgba(115,138,195,.5);
+      margin-bottom: 7px; transition: color .3s;
+    }
+    .field:focus-within label { color: rgba(100,160,255,.9); }
+
+    .input-wrap { position: relative; }
+    input[type="text"], input[type="password"], input[type="email"] {
+      display: block; width: 100%;
+      padding: 12px 44px 12px 15px;
+      background: rgba(255,255,255,.03);
+      border: 1.5px solid rgba(79,142,255,.1);
+      border-radius: 10px; outline: none;
+      color: #d8e4ff;
+      font-family: 'JetBrains Mono', monospace; font-size: 13.5px; letter-spacing: .03em;
+      transition: all .32s ease;
+    }
+    input:focus {
+      border-color: rgba(79,142,255,.58);
+      background: rgba(79,142,255,.055);
+      box-shadow: 0 0 0 3px rgba(79,142,255,.13), 0 0 20px rgba(79,142,255,.08);
+    }
+    input::placeholder { color: rgba(140,160,210,.35); }
+    input:-webkit-autofill, input:-webkit-autofill:focus {
+      -webkit-box-shadow: 0 0 0 40px #0b1228 inset !important;
+      -webkit-text-fill-color: #d8e4ff !important;
+    }
+    .field-error input { border-color: rgba(239,68,68,.6); background: rgba(239,68,68,.04); }
+    .err-msg { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #ef4444; margin-top: 5px; }
+
+    /* eye toggle */
+    .eye-btn {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; padding: 3px;
+      color: rgba(115,138,195,.45); display: flex; line-height: 0;
+      transition: color .22s;
+    }
+    .eye-btn:hover { color: rgba(100,160,255,.85); }
+
+    /* ── primary button ── */
+    .btn-primary {
+      display: block; width: 100%; padding: 14px 20px;
+      background: linear-gradient(135deg, #2959d4 0%, #4f8eff 65%, #6ba4ff 100%);
+      border: none; border-radius: 10px; cursor: pointer;
+      color: #fff; font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 600;
+      letter-spacing: .06em;
+      box-shadow: 0 4px 22px rgba(79,142,255,.3);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .btn-primary:hover { transform: scale(1.018); box-shadow: 0 8px 34px rgba(79,142,255,.48); }
+    .btn-primary:active { transform: scale(0.978); }
+
+    /* ── divider ── */
+    .divider {
+      display: flex; align-items: center; gap: 12px; margin: 20px 0 16px;
+    }
+    .divider hr { flex: 1; border: none; height: 1px; background: rgba(79,142,255,.1); }
+    .divider span {
+      font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+      letter-spacing: .13em; text-transform: uppercase; color: rgba(110,138,205,.35);
+    }
+
+    /* ── footer links ── */
+    .foot-txt { font-size: 12.5px; color: rgba(115,138,205,.45); text-align: center; margin-bottom: 8px; }
+    .foot-link { background: none; border: none; cursor: pointer; color: #4f8eff; font-weight: 600; font-size: 12.5px; font-family: 'Outfit', sans-serif; padding: 0; }
+    .forgot { display: block; text-align: center; font-size: 12px; color: rgba(115,138,195,.35); text-decoration: none; margin-top: 8px; }
+    .forgot:hover { color: rgba(115,138,195,.6); }
+  </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="glow"></div>
+
+<div class="page">
+  <div class="card">
+
+    <div class="status">
+      <div class="sdot"></div>
+      <span class="status-txt">System Online</span>
+    </div>
+
+    <div class="eyebrow"><hr> Academic Portal <hr></div>
+    <h1>Student Sign In</h1>
+    <p class="subtitle">Access your CGPA dashboard securely</p>
+
+    <!-- Success message after registration -->
+    {% if session.get('reg_success') %}
+    <div class="alert alert-success">✓ {{ session.pop('reg_success') }}</div>
+    {% endif %}
+
+    <!-- Login error -->
+    {% if error %}
+    <div class="alert alert-error">⚠ {{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/login">
+
+      <div class="field {% if error %}field-error{% endif %}">
+        <label for="matric">Matric Number</label>
+        <div class="input-wrap">
+          <input type="text" id="matric" name="matric"
+                 placeholder="e.g. U21CS1042"
+                 value="{{ request.form.get('matric', '') }}"
+                 autocomplete="username" required/>
+        </div>
+      </div>
+
+      <div class="field {% if error %}field-error{% endif %}">
+        <label for="password">Password</label>
+        <div class="input-wrap">
+          <input type="password" id="password" name="password"
+                 placeholder="Enter your password"
+                 autocomplete="current-password" required/>
+          <button type="button" class="eye-btn" onclick="togglePw(this, 'password')" title="Show/hide">
+            <svg id="eye-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-primary">Access CGPA Dashboard</button>
+    </form>
+
+    <div class="divider"><hr><span>secure connection</span><hr></div>
+
+    <p class="foot-txt">
+      Don't have an account?
+      <button class="foot-link" onclick="window.location.href='/register'">Register here</button>
+    </p>
+    <a href="#" class="forgot">Forgot password?</a>
+
+  </div>
+</div>
+
+<script>
+  function togglePw(btn, inputId) {
+    const inp = document.getElementById(inputId);
+    inp.type  = inp.type === 'password' ? 'text' : 'password';
+    // swap icon
+    const open = inp.type === 'text';
+    btn.querySelector('svg').innerHTML = open
+      ? `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+         <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+         <line x1="1" y1="1" x2="23" y2="23"/>`
+      : `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+         <circle cx="12" cy="12" r="3"/>`;
+  }
+</script>
+</body>
+</html>

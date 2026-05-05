@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CGPA Calculator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+
+  <!-- ── HEADER ──────────────────────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">◈</span>
+        <span class="logo-text">CGPA<em>Calc</em></span>
+      </div>
+      <p class="header-tagline">Academic Performance Tracker</p>
+    </div>
+  </header>
+
+  <!-- ── MAIN ────────────────────────────────────────────────────────── -->
+  <main class="main-wrapper">
+
+    <!-- ════════════════════════════════════════════════════════════════
+         STEP 1 — STUDENT INFORMATION
+    ═════════════════════════════════════════════════════════════════ -->
+    {% if step == "info" %}
+    <section class="card fade-in">
+      <div class="card-label">Step 01</div>
+      <h1 class="card-title">Student Information</h1>
+      <p class="card-subtitle">
+        Enter your details and the number of semesters to compute your CGPA.
+      </p>
+
+      {% if error %}
+      <div class="alert alert-error">⚠ {{ error }}</div>
+      {% endif %}
+
+      <form action="/semesters" method="POST" class="form-grid">
+
+        <div class="field-group">
+          <label for="name">Full Name</label>
+          <input type="text" id="name" name="name"
+                 placeholder="e.g. Adaeze Okonkwo" required />
+        </div>
+
+        <div class="field-group">
+          <label for="matric_no">Matric Number</label>
+          <input type="text" id="matric_no" name="matric_no"
+                 placeholder="e.g. 22/ENG/0042" required />
+        </div>
+
+        <div class="field-group">
+          <label for="programme">Programme</label>
+          <input type="text" id="programme" name="programme"
+                 placeholder="e.g. B.Eng. Computer Engineering" required />
+        </div>
+
+        <div class="field-group">
+          <label for="department">Department</label>
+          <input type="text" id="department" name="department"
+                 placeholder="e.g. Computer Engineering" required />
+        </div>
+
+        <div class="field-group">
+          <label for="faculty">Faculty</label>
+          <input type="text" id="faculty" name="faculty"
+                 placeholder="e.g. Engineering" required />
+        </div>
+
+        <div class="field-group">
+          <label for="num_semesters">Number of Semesters Completed</label>
+          <input type="number" id="num_semesters" name="num_semesters"
+                 min="1" max="20" placeholder="e.g. 4" required />
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">
+            Continue <span class="btn-arrow">→</span>
+          </button>
+        </div>
+
+      </form>
+    </section>
+
+
+    <!-- ════════════════════════════════════════════════════════════════
+         STEP 2 — COURSES PER SEMESTER
+    ═════════════════════════════════════════════════════════════════ -->
+    {% elif step == "course_counts" %}
+    <section class="card fade-in">
+      <div class="card-label">Step 02</div>
+      <h1 class="card-title">Courses Per Semester</h1>
+      <p class="card-subtitle">
+        How many courses were offered in each semester?
+      </p>
+
+      {% if errors %}
+      <div class="alert alert-error">
+        <strong>Please fix the following:</strong>
+        <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+
+      <form action="/courses" method="POST" class="form-grid">
+
+        {% for s in range(1, num_semesters + 1) %}
+        <div class="field-group">
+          <label for="sem_{{ s }}_course_count">
+            How many courses in Semester {{ s }}?
+          </label>
+          <input
+            type="number"
+            id="sem_{{ s }}_course_count"
+            name="sem_{{ s }}_course_count"
+            min="1" max="20"
+            placeholder="e.g. 6"
+            required
+          />
+        </div>
+        {% endfor %}
+
+        <div class="form-actions">
+          <a href="/" class="btn btn-ghost">← Back</a>
+          <button type="submit" class="btn btn-primary">
+            Generate Course Rows <span class="btn-arrow">→</span>
+          </button>
+        </div>
+
+      </form>
+    </section>
+
+
+    <!-- ════════════════════════════════════════════════════════════════
+         STEP 3 — SEMESTER & COURSE ENTRY
+    ═════════════════════════════════════════════════════════════════ -->
+    {% elif step == "semesters" %}
+    <section class="card fade-in wide-card">
+      <div class="card-label">Step 03</div>
+      <h1 class="card-title">Course Entry</h1>
+      <p class="card-subtitle">
+        Your course rows have been generated. Fill in each course's details.
+        Use <strong>+ Add Course</strong> to add carryovers or extra courses.
+      </p>
+
+      {% if errors %}
+      <div class="alert alert-error">
+        <strong>Please fix the following:</strong>
+        <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+
+      <form action="/results" method="POST" id="mainForm">
+
+        <!-- Pass student details through to the results route -->
+        <input type="hidden" name="name"       value="{{ student.name }}">
+        <input type="hidden" name="matric_no"  value="{{ student.matric_no }}">
+        <input type="hidden" name="programme"  value="{{ student.programme }}">
+        <input type="hidden" name="department" value="{{ student.department }}">
+        <input type="hidden" name="faculty"    value="{{ student.faculty }}">
+
+        {% for s in range(1, num_semesters + 1) %}
+
+        {# number of pre-generated rows for this semester #}
+        {% set preset = course_counts[s - 1] if course_counts is defined and course_counts|length >= s else 1 %}
+
+        <div class="semester-block" id="semester-{{ s }}">
+          <div class="semester-header">
+            <span class="sem-badge">SEM {{ s }}</span>
+            <h2 class="sem-title">Semester {{ s }}</h2>
+          </div>
+
+          <!-- Hidden field: course count — updated by JS on add/remove -->
+          <input type="hidden"
+                 name="sem_{{ s }}_num_courses"
+                 id="sem_{{ s }}_count"
+                 value="{{ preset }}" />
+
+          <div class="table-wrap">
+            <table class="course-table" id="table-sem-{{ s }}">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Course Code</th>
+                  <th>Credit Units</th>
+                  <th>Score (0–100)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for c in range(1, preset + 1) %}
+                <tr class="course-row">
+                  <td class="row-num">{{ c }}</td>
+                  <td>
+                    <input type="text"
+                           name="sem_{{ s }}_course_{{ c }}_code"
+                           placeholder="e.g. ENG{{ 300 + c }}"
+                           class="tbl-input" />
+                  </td>
+                  <td>
+                    <input type="number"
+                           name="sem_{{ s }}_course_{{ c }}_unit"
+                           min="1" max="6" placeholder="3"
+                           class="tbl-input tbl-num" required />
+                  </td>
+                  <td>
+                    <input type="number"
+                           name="sem_{{ s }}_course_{{ c }}_score"
+                           min="0" max="100" placeholder="75"
+                           class="tbl-input tbl-num" required />
+                  </td>
+                  <td>
+                    <button type="button" class="btn-icon btn-del"
+                            onclick="removeRow(this, {{ s }})"
+                            title="Remove">✕</button>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <button type="button" class="btn btn-add"
+                  onclick="addCourse({{ s }})">+ Add Course</button>
+        </div>
+        {% endfor %}
+
+        <div class="form-actions">
+          <a href="/" class="btn btn-ghost">← Back</a>
+          <button type="submit" class="btn btn-primary">
+            Calculate CGPA <span class="btn-arrow">◈</span>
+          </button>
+        </div>
+
+      </form>
+    </section>
+
+
+    <!-- ════════════════════════════════════════════════════════════════
+         STEP 4 — RESULTS
+    ═════════════════════════════════════════════════════════════════ -->
+    {% elif step == "results" %}
+    <section class="results-wrap fade-in">
+
+      <!-- Student summary card -->
+      <div class="card student-summary">
+        <div class="card-label">Academic Report</div>
+        <h1 class="card-title">{{ student.name }}</h1>
+        <div class="summary-grid">
+          <div class="summary-item">
+            <span class="s-label">Matric No</span>
+            <span class="s-value">{{ student.matric_no }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="s-label">Programme</span>
+            <span class="s-value">{{ student.programme }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="s-label">Department</span>
+            <span class="s-value">{{ student.department }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="s-label">Faculty</span>
+            <span class="s-value">{{ student.faculty }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CGPA hero panel -->
+      <div class="cgpa-hero">
+        <div class="cgpa-display">
+          <span class="cgpa-num">{{ "%.2f"|format(cgpa) }}</span>
+          <span class="cgpa-denom">/ 5.00</span>
+        </div>
+        <div class="cgpa-class {{ classification | lower | replace(' ', '-') }}">
+          {{ classification }}
+        </div>
+        <div class="cgpa-meta">
+          <span>{{ cumulative_units }} Total Units</span>
+          <span class="dot">·</span>
+          <span>{{ cumulative_points }} Total Points</span>
+          <span class="dot">·</span>
+          <span>{{ semesters | length }} Semester(s)</span>
+        </div>
+      </div>
+
+      <!-- Per-semester breakdown -->
+      {% for sem in semesters %}
+      <div class="card sem-result-card fade-in"
+           style="animation-delay: {{ loop.index0 * 0.08 }}s">
+        <div class="sem-result-header">
+          <span class="sem-badge">SEM {{ sem.number }}</span>
+          <div class="sem-gpa-badge">GPA: {{ "%.2f"|format(sem.gpa) }}</div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="result-table">
+            <thead>
+              <tr>
+                <th>Course Code</th>
+                <th>Unit</th>
+                <th>Score</th>
+                <th>Grade</th>
+                <th>Grade Point</th>
+                <th>Weighted</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in sem.courses %}
+              <tr>
+                <td class="course-code">{{ c.code }}</td>
+                <td>{{ c.unit }}</td>
+                <td>{{ c.score }}</td>
+                <td>
+                  <span class="grade-pill grade-{{ c.grade }}">{{ c.grade }}</span>
+                </td>
+                <td>{{ c.gp }}</td>
+                <td>{{ c.unit * c.gp }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2" class="foot-label">Semester Totals</td>
+                <td></td>
+                <td></td>
+                <td><strong>{{ sem.units }}</strong> units</td>
+                <td><strong>{{ sem.points }}</strong> pts</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+      {% endfor %}
+
+      <div class="form-actions">
+        <a href="/" class="btn btn-primary">← Start New Calculation</a>
+      </div>
+
+    </section>
+    {% endif %}
+
+  </main>
+
+  <!-- ── FOOTER ──────────────────────────────────────────────────────── -->
+  <footer class="site-footer">
+    <p>CGPA Calculator &nbsp;·&nbsp; Built with Flask &nbsp;·&nbsp; 5-Point Scale</p>
+  </footer>
+
+  <!-- ── JAVASCRIPT ──────────────────────────────────────────────────── -->
+  <script>
+    /**
+     * addCourse(semNum)
+     * Appends a new course row to the given semester's table
+     * and increments the hidden course-count field.
+     */
+    function addCourse(semNum) {
+      const tbody   = document.querySelector(`#table-sem-${semNum} tbody`);
+      const counter = document.getElementById(`sem_${semNum}_count`);
+      const newIdx  = tbody.rows.length + 1;
+
+      counter.value = newIdx;
+
+      const tr = document.createElement("tr");
+      tr.className = "course-row row-enter";
+      tr.innerHTML = `
+        <td class="row-num">${newIdx}</td>
+        <td>
+          <input type="text"
+                 name="sem_${semNum}_course_${newIdx}_code"
+                 placeholder="e.g. ENG${300 + newIdx}"
+                 class="tbl-input" />
+        </td>
+        <td>
+          <input type="number"
+                 name="sem_${semNum}_course_${newIdx}_unit"
+                 min="1" max="6" placeholder="3"
+                 class="tbl-input tbl-num" required />
+        </td>
+        <td>
+          <input type="number"
+                 name="sem_${semNum}_course_${newIdx}_score"
+                 min="0" max="100" placeholder="70"
+                 class="tbl-input tbl-num" required />
+        </td>
+        <td>
+          <button type="button" class="btn-icon btn-del"
+                  onclick="removeRow(this, ${semNum})"
+                  title="Remove">✕</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+      requestAnimationFrame(() => tr.classList.remove("row-enter"));
+    }
+
+    /**
+     * removeRow(btn, semNum)
+     * Removes the row containing the button and re-numbers remaining rows.
+     */
+    function removeRow(btn, semNum) {
+      const tbody = document.querySelector(`#table-sem-${semNum} tbody`);
+      if (tbody.rows.length <= 1) return; // always keep at least one row
+
+      btn.closest("tr").remove();
+
+      Array.from(tbody.rows).forEach((row, i) => {
+        const idx = i + 1;
+        row.querySelector(".row-num").textContent = idx;
+
+        const [codeInput, unitInput, scoreInput] = row.querySelectorAll(
+          "input[type='text'], input[type='number']"
+        );
+        codeInput.name  = `sem_${semNum}_course_${idx}_code`;
+        unitInput.name  = `sem_${semNum}_course_${idx}_unit`;
+        scoreInput.name = `sem_${semNum}_course_${idx}_score`;
+
+        const delBtn = row.querySelector(".btn-del");
+        if (delBtn) delBtn.setAttribute("onclick", `removeRow(this, ${semNum})`);
+      });
+
+      document.getElementById(`sem_${semNum}_count`).value = tbody.rows.length;
+    }
+  </script>
+
+</body>
+</html>
