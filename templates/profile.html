@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Profile — CGPA Calculator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:   #0a1628;
+      --blue:   #1a56db;
+      --sky:    #3b82f6;
+      --accent: #38bdf8;
+      --gold:   #f59e0b;
+      --green:  #10b981;
+      --red:    #ef4444;
+      --white:  #ffffff;
+      --gray50: #f8fafc;
+      --gray100:#f1f5f9;
+      --gray200:#e2e8f0;
+      --gray400:#94a3b8;
+      --gray600:#475569;
+      --gray800:#1e293b;
+      --card-shadow: 0 4px 24px rgba(10,22,40,0.10);
+      --radius: 16px;
+
+      /* Glass variables */
+      --glass-bg:      rgba(255, 255, 255, 0.07);
+      --glass-border:  rgba(255, 255, 255, 0.13);
+      --glass-shadow:  0 8px 32px rgba(10, 22, 40, 0.35);
+      --glass-blur:    blur(18px);
+    }
+
+    /* ── GLOBAL BACKGROUND with animated mesh ── */
+    body {
+      font-family: 'Sora', sans-serif;
+      background: var(--navy);
+      color: var(--gray800);
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Animated background blobs */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -200px; left: -200px;
+      width: 700px; height: 700px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(26,86,219,0.22) 0%, transparent 70%);
+      animation: blobDrift 18s ease-in-out infinite alternate;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -150px; right: -100px;
+      width: 600px; height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(56,189,248,0.13) 0%, transparent 70%);
+      animation: blobDrift2 22s ease-in-out infinite alternate;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes blobDrift  { from { transform: translate(0,0) scale(1); } to { transform: translate(80px, 60px) scale(1.15); } }
+    @keyframes blobDrift2 { from { transform: translate(0,0) scale(1); } to { transform: translate(-60px, -80px) scale(1.1); } }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      position: fixed; top: 0; left: 0;
+      width: 240px; height: 100vh;
+      background: rgba(10, 22, 40, 0.75);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-right: 1px solid var(--glass-border);
+      display: flex; flex-direction: column;
+      padding: 32px 0;
+      z-index: 100;
+    }
+
+    .sidebar-logo { padding: 0 24px 32px; border-bottom: 1px solid var(--glass-border); }
+    .sidebar-logo h2 { color: var(--white); font-size: 1.1rem; font-weight: 700; letter-spacing: -0.02em; }
+    .sidebar-logo span { color: var(--accent); }
+    .sidebar-logo p { color: var(--gray400); font-size: 0.72rem; margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+
+    .sidebar-nav { padding: 24px 12px; flex: 1; }
+    .nav-label { color: var(--gray400); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 0 12px; margin-bottom: 8px; }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px; border-radius: 10px;
+      color: var(--gray400); text-decoration: none;
+      font-size: 0.875rem; font-weight: 500;
+      transition: all 0.2s; margin-bottom: 2px;
+    }
+    .nav-item:hover { background: var(--glass-bg); color: var(--white); }
+    .nav-item.active {
+      background: rgba(26, 86, 219, 0.35);
+      color: var(--white);
+      border: 1px solid rgba(26,86,219,0.4);
+      backdrop-filter: blur(8px);
+    }
+    .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+    .sidebar-footer { padding: 16px 12px; border-top: 1px solid var(--glass-border); }
+    .user-card {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 10px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(8px);
+    }
+    .user-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue), var(--accent));
+      display: flex; align-items: center; justify-content: center;
+      color: var(--white); font-weight: 700; font-size: 0.875rem; flex-shrink: 0;
+    }
+    .user-info p { color: var(--white); font-size: 0.8rem; font-weight: 600; }
+    .user-info span { color: var(--gray400); font-size: 0.7rem; }
+
+    /* ── MAIN ── */
+    .main {
+      margin-left: 240px;
+      padding: 32px;
+      min-height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; }
+    .topbar-left h1 {
+      font-size: 1.5rem; font-weight: 700;
+      color: var(--white);
+      letter-spacing: -0.03em;
+    }
+    .topbar-left p { color: var(--gray400); font-size: 0.875rem; margin-top: 2px; }
+    .topbar-right { display: flex; gap: 10px; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 20px; border-radius: 10px;
+      font-family: 'Sora', sans-serif; font-size: 0.875rem; font-weight: 600;
+      cursor: pointer; text-decoration: none; border: none; transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--blue), #2563eb);
+      color: var(--white);
+      box-shadow: 0 0 20px rgba(26,86,219,0.4);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(26,86,219,0.55); }
+    .btn-outline {
+      background: var(--glass-bg);
+      color: var(--gray400);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(8px);
+    }
+    .btn-outline:hover { border-color: var(--sky); color: var(--white); background: rgba(59,130,246,0.1); }
+
+    /* ── PROFILE HEADER CARD (glass) ── */
+    .profile-header {
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 32px 36px;
+      margin-bottom: 24px;
+      display: flex; align-items: center; gap: 28px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--glass-shadow);
+    }
+
+    /* Decorative glows inside header */
+    .profile-header::before {
+      content: '';
+      position: absolute;
+      top: -80px; right: -60px;
+      width: 260px; height: 260px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(26,86,219,0.25) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .profile-header::after {
+      content: '';
+      position: absolute;
+      bottom: -50px; right: 100px;
+      width: 160px; height: 160px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(56,189,248,0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .profile-avatar {
+      width: 84px; height: 84px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, var(--blue) 0%, var(--accent) 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.2rem; font-weight: 700; color: var(--white);
+      flex-shrink: 0; position: relative; z-index: 1;
+      border: 2px solid var(--glass-border);
+      box-shadow: 0 8px 24px rgba(26,86,219,0.4);
+    }
+
+    .profile-meta { flex: 1; position: relative; z-index: 1; }
+    .profile-meta h2 {
+      color: var(--white); font-size: 1.5rem; font-weight: 700;
+      letter-spacing: -0.03em; margin-bottom: 6px;
+    }
+    .profile-meta p { color: var(--gray400); font-size: 0.875rem; }
+    .profile-meta .meta-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      margin-top: 10px; padding: 4px 12px; border-radius: 20px;
+      background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.2);
+      color: var(--accent); font-size: 0.72rem; font-weight: 600;
+      font-family: 'JetBrains Mono', monospace; letter-spacing: 0.04em;
+    }
+
+    .profile-cgpa { position: relative; z-index: 1; text-align: right; }
+    .profile-cgpa .cgpa-big {
+      font-size: 3.5rem; font-weight: 700; color: var(--white);
+      font-family: 'JetBrains Mono', monospace; letter-spacing: -0.05em; line-height: 1;
+      text-shadow: 0 0 40px rgba(56,189,248,0.4);
+    }
+    .profile-cgpa .cgpa-label { color: var(--gray400); font-size: 0.8rem; margin-top: 6px; }
+    .profile-cgpa .class-badge {
+      display: inline-block; margin-top: 10px;
+      padding: 5px 16px; border-radius: 20px;
+      font-size: 0.75rem; font-weight: 700;
+      background: rgba(245,158,11,0.15);
+      color: var(--gold);
+      border: 1px solid rgba(245,158,11,0.35);
+      font-family: 'JetBrains Mono', monospace;
+      box-shadow: 0 0 12px rgba(245,158,11,0.2);
+    }
+
+    /* ── INFO GRID ── */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .info-card {
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .info-card:hover {
+      border-color: rgba(56,189,248,0.25);
+      transform: translateY(-2px);
+    }
+
+    .info-card-label {
+      font-size: 0.68rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--gray400); margin-bottom: 8px;
+    }
+    .info-card-value { font-size: 0.95rem; font-weight: 600; color: var(--white); }
+    .info-card-value.mono { font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; color: var(--accent); }
+
+    /* ── SEMESTER SECTIONS ── */
+    .sem-section { margin-bottom: 24px; }
+
+    .sem-header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .sem-title { font-size: 1rem; font-weight: 700; color: var(--white); }
+
+    .sem-gpa {
+      margin-left: auto;
+      background: rgba(26,86,219,0.25);
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem; font-weight: 600;
+      padding: 4px 14px; border-radius: 20px;
+      border: 1px solid rgba(56,189,248,0.2);
+    }
+
+    .sem-units { font-size: 0.8rem; color: var(--gray400); }
+
+    /* Glass card for tables */
+    .card {
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border-radius: var(--radius);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      overflow: hidden;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    thead th {
+      text-align: left; padding: 12px 16px;
+      font-size: 0.68rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--gray400);
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    tbody tr { border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.15s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.04); }
+
+    tbody td { padding: 14px 16px; font-size: 0.875rem; color: rgba(255,255,255,0.85); }
+
+    .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+
+    .grade-chip {
+      display: inline-block; padding: 3px 10px; border-radius: 6px;
+      font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+    }
+    .grade-A { background: rgba(16,185,129,0.18); color: #34d399; border: 1px solid rgba(16,185,129,0.25); }
+    .grade-B { background: rgba(56,189,248,0.15); color: var(--accent); border: 1px solid rgba(56,189,248,0.25); }
+    .grade-C { background: rgba(245,158,11,0.15); color: var(--gold); border: 1px solid rgba(245,158,11,0.25); }
+    .grade-D { background: rgba(167,139,250,0.15); color: #a78bfa; border: 1px solid rgba(167,139,250,0.25); }
+    .grade-E { background: rgba(251,146,60,0.15); color: #fb923c; border: 1px solid rgba(251,146,60,0.25); }
+    .grade-F { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+
+    .sem-number-badge {
+      background: linear-gradient(135deg, var(--blue), #2563eb);
+      color: var(--white);
+      font-size: 0.72rem; font-weight: 700;
+      padding: 4px 14px; border-radius: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      box-shadow: 0 2px 8px rgba(26,86,219,0.4);
+    }
+
+    /* ── SUMMARY FOOTER ── */
+    .summary-card {
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 28px 36px;
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 24px;
+      box-shadow: var(--glass-shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Subtle glow inside summary */
+    .summary-card::before {
+      content: '';
+      position: absolute;
+      left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
+      width: 400px; height: 200px;
+      background: radial-gradient(ellipse, rgba(26,86,219,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .summary-item { text-align: center; position: relative; z-index: 1; }
+    .summary-item .val {
+      font-size: 1.6rem; font-weight: 700; color: var(--white);
+      font-family: 'JetBrains Mono', monospace; letter-spacing: -0.03em;
+    }
+    .summary-item .lbl { font-size: 0.72rem; color: var(--gray400); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    .summary-divider { width: 1px; height: 44px; background: var(--glass-border); }
+
+    /* ── DOWNLOAD BUTTON AREA ── */
+    .download-bar {
+      margin-top: 20px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .btn-download {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 22px; border-radius: 10px;
+      font-family: 'Sora', sans-serif; font-size: 0.875rem; font-weight: 600;
+      cursor: pointer; text-decoration: none; border: none; transition: all 0.2s;
+      background: rgba(16,185,129,0.15);
+      color: #34d399;
+      border: 1px solid rgba(16,185,129,0.25);
+      backdrop-filter: blur(8px);
+    }
+    .btn-download:hover { background: rgba(16,185,129,0.25); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(16,185,129,0.2); }
+    .btn-download svg { width: 16px; height: 16px; }
+
+    /* ── FLASH MESSAGES ── */
+    .flashes { margin-bottom: 20px; }
+    .flash {
+      padding: 12px 18px; border-radius: 10px; margin-bottom: 8px;
+      font-size: 0.875rem; font-weight: 500;
+      backdrop-filter: blur(8px); border: 1px solid;
+    }
+    .flash.success { background: rgba(16,185,129,0.12); color: #34d399; border-color: rgba(16,185,129,0.25); }
+    .flash.danger  { background: rgba(239,68,68,0.12); color: #f87171; border-color: rgba(239,68,68,0.25); }
+    .flash.warning { background: rgba(245,158,11,0.12); color: var(--gold); border-color: rgba(245,158,11,0.25); }
+    .flash.info    { background: rgba(56,189,248,0.12); color: var(--accent); border-color: rgba(56,189,248,0.25); }
+
+    @media (max-width: 1100px) { .info-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 20px; }
+      .profile-header { flex-direction: column; text-align: center; }
+      .profile-cgpa { text-align: center; }
+      .info-grid { grid-template-columns: 1fr 1fr; }
+      .summary-card { flex-wrap: wrap; gap: 20px; justify-content: center; }
+      .summary-divider { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h2>CGPA <span>Calc</span></h2>
+    <p>Academic Performance</p>
+  </div>
+
+  <nav class="sidebar-nav">
+    <p class="nav-label">Menu</p>
+
+    <a href="{{ url_for('dashboard') }}" class="nav-item">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>
+      Dashboard
+    </a>
+
+    <a href="{{ url_for('index') }}" class="nav-item">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M9 7h6m0 10v-3m-3 3v-6m-6 6V7a2 2 0 012-2h8a2 2 0 012 2v13"/>
+      </svg>
+      Calculator
+    </a>
+
+    <a href="{{ url_for('profile') }}" class="nav-item active">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+      Profile
+    </a>
+
+    <a href="{{ url_for('logout') }}" class="nav-item">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1"/>
+      </svg>
+      Logout
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar">{{ session.user_name[0] | upper if session.user_name else "U" }}</div>
+      <div class="user-info">
+        <p>{{ session.user_name or "Student" }}</p>
+        <span>{{ session.user_matric or "" }}</span>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- FLASH MESSAGES -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flashes">
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>Academic Profile</h1>
+      <p>Full breakdown of your performance</p>
+    </div>
+    <div class="topbar-right">
+      <a href="{{ url_for('download_result', result_id=result_id) }}" class="btn-download">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M12 3v12m0 0l-4-4m4 4l4-4M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2"/>
+        </svg>
+        Download PDF
+      </a>
+      <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Go to Dashboard</a>
+      <a href="{{ url_for('index') }}" class="btn btn-outline">New Calculation</a>
+    </div>
+  </div>
+
+  <!-- PROFILE HEADER -->
+  <div class="profile-header">
+    <div class="profile-avatar">{{ data.student.name[0] | upper }}</div>
+    <div class="profile-meta">
+      <h2>{{ data.student.name }}</h2>
+      <p>{{ data.student.faculty }}</p>
+      <span class="meta-tag">{{ data.student.matric_no }}</span>
+    </div>
+    <div class="profile-cgpa">
+      <div class="cgpa-big">{{ data.cgpa }}</div>
+      <div class="cgpa-label">Cumulative GPA / 5.00</div>
+      <div class="class-badge">{{ data.classification }}</div>
+    </div>
+  </div>
+
+  <!-- INFO GRID -->
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="info-card-label">Full Name</div>
+      <div class="info-card-value">{{ data.student.name }}</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">Matric Number</div>
+      <div class="info-card-value mono">{{ data.student.matric_no }}</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">Programme</div>
+      <div class="info-card-value">{{ data.student.programme }}</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">Department</div>
+      <div class="info-card-value">{{ data.student.department }}</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">Faculty</div>
+      <div class="info-card-value">{{ data.student.faculty }}</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">Date Calculated</div>
+      <div class="info-card-value mono">{{ data.date }}</div>
+    </div>
+  </div>
+
+  <!-- SEMESTER TABLES -->
+  {% for sem in data.semesters %}
+  <div class="sem-section">
+    <div class="sem-header">
+      <span class="sem-number-badge">Semester {{ sem.number }}</span>
+      <span class="sem-title">Course Breakdown</span>
+      <span class="sem-units">{{ sem.units }} units &nbsp;·&nbsp; {{ sem.points }} points</span>
+      <span class="sem-gpa">GPA: {{ sem.gpa }}</span>
+    </div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Course Code</th>
+            <th>Credit Unit</th>
+            <th>Score</th>
+            <th>Grade</th>
+            <th>Grade Point</th>
+            <th>Weighted Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for course in sem.courses %}
+          <tr>
+            <td><strong class="mono">{{ course.code }}</strong></td>
+            <td class="mono">{{ course.unit }}</td>
+            <td class="mono">{{ course.score }}</td>
+            <td>
+              <span class="grade-chip grade-{{ course.grade }}">{{ course.grade }}</span>
+            </td>
+            <td class="mono">{{ course.gp }}</td>
+            <td class="mono">{{ course.weighted }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+
+  <!-- SUMMARY FOOTER -->
+  <div class="summary-card">
+    <div class="summary-item">
+      <div class="val">{{ data.semesters | length }}</div>
+      <div class="lbl">Semesters</div>
+    </div>
+    <div class="summary-divider"></div>
+    <div class="summary-item">
+      <div class="val">{{ data.cumulative_units }}</div>
+      <div class="lbl">Total Units</div>
+    </div>
+    <div class="summary-divider"></div>
+    <div class="summary-item">
+      <div class="val">{{ data.cumulative_points }}</div>
+      <div class="lbl">Quality Points</div>
+    </div>
+    <div class="summary-divider"></div>
+    <div class="summary-item">
+      <div class="val">{{ data.cgpa }}</div>
+      <div class="lbl">CGPA / 5.00</div>
+    </div>
+    <div class="summary-divider"></div>
+    <div class="summary-item">
+      <div class="val" style="font-size:1rem;">{{ data.classification }}</div>
+      <div class="lbl">Classification</div>
+    </div>
+  </div>
+
+</main>
+</body>
+</html>

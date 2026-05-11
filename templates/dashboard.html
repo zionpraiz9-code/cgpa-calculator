@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard — CGPA Calculator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#060a14; --bg2:#080d1c;
+      --surface:rgba(9,15,32,0.85); --surface2:rgba(14,22,46,0.9);
+      --border:rgba(79,142,255,0.14); --border-glow:rgba(79,142,255,0.35);
+      --blue:#4f8eff; --blue-dark:#2959d4; --blue-dim:rgba(79,142,255,0.55); --blue-faint:rgba(79,142,255,0.08);
+      --green:#22c55e; --green-dim:rgba(34,197,94,0.12);
+      --gold:#f59e0b; --gold-dim:rgba(245,158,11,0.12);
+      --cyan:#38bdf8; --cyan-dim:rgba(56,189,248,0.12);
+      --red:#ef4444; --purple:#a78bfa;
+      --text:#d8e4ff; --text-dim:rgba(160,185,235,0.55); --text-faint:rgba(110,138,210,0.35);
+      --radius:16px; --radius-sm:10px; --sidebar-w:252px;
+    }
+    html,body { min-height:100vh; }
+    body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); overflow-x:hidden; }
+
+    .grid-bg { position:fixed; inset:0; z-index:0; pointer-events:none;
+      background-image: linear-gradient(rgba(79,142,255,.025) 1px,transparent 1px),
+                        linear-gradient(90deg,rgba(79,142,255,.025) 1px,transparent 1px);
+      background-size:44px 44px; }
+    .ambient-glow { position:fixed; top:0; left:var(--sidebar-w); right:0; height:320px; z-index:0; pointer-events:none;
+      background:radial-gradient(ellipse 70% 100% at 60% 0%,rgba(79,142,255,.1) 0%,transparent 70%); }
+
+    /* ── SIDEBAR ── */
+    .sidebar { position:fixed; top:0; left:0; width:var(--sidebar-w); height:100vh;
+      background:rgba(6,10,20,0.95); border-right:1px solid var(--border);
+      backdrop-filter:blur(24px); display:flex; flex-direction:column; z-index:200; }
+    .sidebar::after { content:''; position:absolute; top:0; right:0; width:1px; height:100%;
+      background:linear-gradient(180deg,transparent 0%,rgba(79,142,255,.4) 30%,rgba(79,142,255,.2) 70%,transparent 100%); }
+    .sidebar-logo { padding:28px 24px 24px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; }
+    .logo-icon { width:38px; height:38px; background:linear-gradient(135deg,var(--blue-dark),var(--blue)); border-radius:10px;
+      display:flex; align-items:center; justify-content:center; font-size:18px; color:#fff;
+      box-shadow:0 0 20px rgba(79,142,255,.5),0 4px 12px rgba(0,0,0,.4); flex-shrink:0; }
+    .logo-text { font-family:'Syne',sans-serif; font-weight:800; font-size:17px; color:#e6eeff; letter-spacing:-.3px; line-height:1; }
+    .logo-text em { font-style:normal; color:var(--blue); }
+    .logo-sub { font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-faint); margin-top:2px; }
+    .sidebar-nav { padding:20px 14px; flex:1; overflow-y:auto; }
+    .nav-section-label { font-family:'JetBrains Mono',monospace; font-size:9px; font-weight:600; letter-spacing:.14em;
+      text-transform:uppercase; color:var(--text-faint); padding:0 10px; margin-bottom:8px; margin-top:4px; }
+    .nav-item { display:flex; align-items:center; gap:11px; padding:11px 12px; border-radius:var(--radius-sm);
+      color:var(--text-dim); text-decoration:none; font-size:.875rem; font-weight:500;
+      transition:all .2s; margin-bottom:3px; position:relative; }
+    .nav-item:hover { background:rgba(79,142,255,.08); color:var(--text); }
+    .nav-item.active { background:linear-gradient(90deg,rgba(79,142,255,.18) 0%,rgba(79,142,255,.05) 100%);
+      color:var(--blue); border:1px solid rgba(79,142,255,.2); }
+    .nav-item.active::before { content:''; position:absolute; left:0; top:20%; bottom:20%; width:3px;
+      border-radius:0 3px 3px 0; background:var(--blue); box-shadow:0 0 10px var(--blue); }
+    .nav-item svg { width:17px; height:17px; flex-shrink:0; }
+    .nav-item-logout { margin-top:8px; border-top:1px solid var(--border); padding-top:11px; }
+    .nav-item-logout .nav-item { color:rgba(239,68,68,.6); }
+    .nav-item-logout .nav-item:hover { color:#ef4444; background:rgba(239,68,68,.08); }
+    .sidebar-footer { padding:16px 14px; border-top:1px solid var(--border); }
+    .user-card { display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:var(--radius-sm);
+      background:rgba(79,142,255,.06); border:1px solid var(--border); }
+    .user-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--blue-dark),var(--blue));
+      display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:.8rem;
+      flex-shrink:0; box-shadow:0 0 12px rgba(79,142,255,.4); }
+    .user-info p { color:var(--text); font-size:.8rem; font-weight:600; }
+    .user-info span { color:var(--text-faint); font-family:'JetBrains Mono',monospace; font-size:.67rem; }
+
+    /* ── MAIN ── */
+    .main { margin-left:var(--sidebar-w); padding:36px 36px 60px; min-height:100vh; position:relative; z-index:1; }
+    .topbar { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:36px; animation:fadeUp .5s ease both; }
+    .topbar-eyebrow { font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.18em; text-transform:uppercase;
+      color:var(--text-faint); margin-bottom:6px; display:flex; align-items:center; gap:8px; }
+    .topbar-eyebrow::before { content:''; width:16px; height:1px; background:var(--blue); box-shadow:0 0 6px var(--blue); }
+    .topbar-left h1 { font-family:'Syne',sans-serif; font-size:2rem; font-weight:800; color:#e6eeff; letter-spacing:-.04em; line-height:1; }
+    .topbar-left p { color:var(--text-dim); font-size:.875rem; margin-top:6px; }
+
+    /* ── BUTTONS ── */
+    .btn { display:inline-flex; align-items:center; gap:8px; padding:11px 22px; border-radius:var(--radius-sm);
+      font-family:'DM Sans',sans-serif; font-size:.875rem; font-weight:600; cursor:pointer; text-decoration:none; border:none; transition:all .2s; }
+    .btn-primary { background:linear-gradient(135deg,var(--blue-dark),var(--blue)); color:#fff; box-shadow:0 4px 20px rgba(79,142,255,.35); }
+    .btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 30px rgba(79,142,255,.55); }
+    .btn-ghost { background:rgba(79,142,255,.08); color:var(--blue); border:1px solid rgba(79,142,255,.2); }
+    .btn-ghost:hover { background:rgba(79,142,255,.14); border-color:var(--blue-dim); }
+    .btn-green { background:rgba(34,197,94,.15); color:var(--green); border:1px solid rgba(34,197,94,.25); font-size:.78rem; padding:7px 14px; }
+    .btn-green:hover { background:rgba(34,197,94,.25); }
+    .btn-outline-sm { background:rgba(79,142,255,.08); color:var(--blue); border:1px solid rgba(79,142,255,.2); font-size:.78rem; padding:7px 14px; }
+    .btn-outline-sm:hover { background:rgba(79,142,255,.15); }
+
+    /* ── FLASH ── */
+    .flash { padding:12px 18px; border-radius:var(--radius-sm); margin-bottom:20px; font-size:.875rem; font-weight:500; border:1px solid; backdrop-filter:blur(10px); }
+    .flash.success { background:rgba(34,197,94,.08); border-color:rgba(34,197,94,.3); color:#4ade80; }
+    .flash.danger  { background:rgba(239,68,68,.08); border-color:rgba(239,68,68,.3); color:#f87171; }
+    .flash.warning { background:rgba(245,158,11,.08); border-color:rgba(245,158,11,.3); color:#fbbf24; }
+    .flash.info    { background:rgba(79,142,255,.08); border-color:rgba(79,142,255,.3); color:var(--blue); }
+
+    /* ── STAT CARDS ── */
+    .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-bottom:28px; animation:fadeUp .5s .05s ease both; }
+    .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:22px 22px 20px;
+      backdrop-filter:blur(20px); position:relative; overflow:hidden; transition:transform .25s,box-shadow .25s,border-color .25s;
+      box-shadow:0 8px 32px rgba(0,0,0,.35); }
+    .stat-card::before { content:''; position:absolute; inset:0; border-radius:var(--radius);
+      background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(79,142,255,.06) 0%,transparent 100%); pointer-events:none; }
+    .stat-card:hover { transform:translateY(-4px); border-color:var(--border-glow); box-shadow:0 16px 48px rgba(0,0,0,.5),0 0 0 1px rgba(79,142,255,.15); }
+    .stat-card-strip { position:absolute; top:0; left:0; right:0; height:2px; border-radius:var(--radius) var(--radius) 0 0; }
+    .strip-blue  { background:linear-gradient(90deg,var(--blue-dark),var(--blue)); box-shadow:0 0 12px var(--blue); }
+    .strip-green { background:linear-gradient(90deg,#16a34a,var(--green)); box-shadow:0 0 12px var(--green); }
+    .strip-gold  { background:linear-gradient(90deg,#d97706,var(--gold)); box-shadow:0 0 12px var(--gold); }
+    .strip-cyan  { background:linear-gradient(90deg,#0ea5e9,var(--cyan)); box-shadow:0 0 12px var(--cyan); }
+    .stat-icon { width:38px; height:38px; border-radius:9px; display:flex; align-items:center; justify-content:center; margin-bottom:16px; border:1px solid; }
+    .icon-blue  { background:rgba(79,142,255,.12); border-color:rgba(79,142,255,.2); }
+    .icon-green { background:rgba(34,197,94,.1);   border-color:rgba(34,197,94,.2); }
+    .icon-gold  { background:rgba(245,158,11,.1);  border-color:rgba(245,158,11,.2); }
+    .icon-cyan  { background:rgba(56,189,248,.1);  border-color:rgba(56,189,248,.2); }
+    .stat-icon svg { width:18px; height:18px; }
+    .icon-blue  svg { color:var(--blue); }
+    .icon-green svg { color:var(--green); }
+    .icon-gold  svg { color:var(--gold); }
+    .icon-cyan  svg { color:var(--cyan); }
+    .stat-value { font-family:'Syne',sans-serif; font-size:2.1rem; font-weight:800; color:#e6eeff; letter-spacing:-.05em; line-height:1; margin-bottom:4px; }
+    .stat-label { font-size:.78rem; color:var(--text-faint); font-weight:400; }
+    .stat-badge { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:.68rem; font-weight:700;
+      margin-top:10px; font-family:'JetBrains Mono',monospace; letter-spacing:.03em; border:1px solid; }
+    .badge-first    { background:rgba(251,191,36,.1);  color:#fbbf24; border-color:rgba(251,191,36,.2); }
+    .badge-second-u { background:rgba(79,142,255,.1);  color:var(--blue); border-color:rgba(79,142,255,.2); }
+    .badge-second-l { background:rgba(34,197,94,.1);   color:var(--green); border-color:rgba(34,197,94,.2); }
+    .badge-third    { background:rgba(167,139,250,.1); color:#a78bfa; border-color:rgba(167,139,250,.2); }
+    .badge-pass     { background:rgba(148,163,184,.1); color:#94a3b8; border-color:rgba(148,163,184,.2); }
+    .badge-fail     { background:rgba(239,68,68,.1);   color:#f87171; border-color:rgba(239,68,68,.2); }
+
+    /* ── CONTENT GRID ── */
+    .content-grid { display:grid; grid-template-columns:1fr 320px; gap:22px; animation:fadeUp .5s .1s ease both; }
+
+    /* ── GLASS CARD ── */
+    .glass-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+      backdrop-filter:blur(20px); box-shadow:0 8px 32px rgba(0,0,0,.35); overflow:hidden; position:relative; }
+    .glass-card::before { content:''; position:absolute; inset:0; border-radius:var(--radius);
+      background:radial-gradient(ellipse 100% 50% at 50% 0%,rgba(79,142,255,.04) 0%,transparent 60%); pointer-events:none; }
+    .card-head { padding:18px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+    .card-head-left { display:flex; align-items:center; gap:10px; }
+    .card-head-dot { width:8px; height:8px; border-radius:50%; background:var(--blue); box-shadow:0 0 8px var(--blue); }
+    .card-head h3 { font-family:'Syne',sans-serif; font-size:.95rem; font-weight:700; color:#e6eeff; }
+    .card-head p { font-size:.78rem; color:var(--text-faint); margin-top:1px; }
+    .card-body { padding:22px; }
+
+    /* ── TABLE ── */
+    table { width:100%; border-collapse:collapse; }
+    thead th { text-align:left; padding:10px 18px; font-family:'JetBrains Mono',monospace;
+      font-size:.68rem; font-weight:600; text-transform:uppercase; letter-spacing:.1em;
+      color:var(--text-faint); background:rgba(79,142,255,.04); border-bottom:1px solid var(--border); }
+    tbody tr { border-bottom:1px solid rgba(79,142,255,.06); transition:background .15s; }
+    tbody tr:last-child { border-bottom:none; }
+    tbody tr:hover { background:rgba(79,142,255,.05); }
+    tbody td { padding:14px 18px; font-size:.855rem; color:var(--text-dim); }
+    .mono { font-family:'JetBrains Mono',monospace; font-size:.82rem; }
+    .cgpa-strong { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; color:#e6eeff; }
+    .grade-chip { display:inline-block; padding:3px 10px; border-radius:6px; font-size:.7rem; font-weight:700;
+      font-family:'JetBrains Mono',monospace; border:1px solid; }
+    .chip-first    { background:rgba(251,191,36,.1);  color:#fbbf24; border-color:rgba(251,191,36,.2); }
+    .chip-second-u { background:rgba(79,142,255,.1);  color:var(--blue); border-color:rgba(79,142,255,.2); }
+    .chip-second-l { background:rgba(34,197,94,.1);   color:var(--green); border-color:rgba(34,197,94,.2); }
+    .chip-third    { background:rgba(167,139,250,.1); color:#a78bfa; border-color:rgba(167,139,250,.2); }
+    .chip-pass     { background:rgba(148,163,184,.1); color:#94a3b8; border-color:rgba(148,163,184,.2); }
+    .chip-fail     { background:rgba(239,68,68,.1);   color:#f87171; border-color:rgba(239,68,68,.2); }
+    .chip-update   { background:rgba(167,139,250,.1); color:#a78bfa; border-color:rgba(167,139,250,.2); font-size:.65rem; padding:2px 7px; }
+    .row-actions   { display:flex; gap:7px; }
+
+    /* ── RIGHT PANEL ── */
+    .right-panel { display:flex; flex-direction:column; gap:18px; }
+
+    /* ── CGPA RING ── */
+    .ring-wrap { padding:32px 22px 26px; text-align:center; }
+    .cgpa-ring-outer { width:150px; height:150px; margin:0 auto 20px; position:relative; }
+    .cgpa-ring-outer svg { width:100%; height:100%; transform:rotate(-90deg); filter:drop-shadow(0 0 12px rgba(79,142,255,.4)); }
+    .cgpa-track { fill:none; stroke:rgba(79,142,255,.1); stroke-width:8; }
+    .cgpa-fill  { fill:none; stroke-width:8; stroke-linecap:round; stroke:url(#ringGrad); }
+    .cgpa-ring-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; }
+    .cgpa-ring-center .val   { font-family:'Syne',sans-serif; font-size:1.9rem; font-weight:800; color:#e6eeff; letter-spacing:-.05em; line-height:1; }
+    .cgpa-ring-center .denom { font-family:'JetBrains Mono',monospace; font-size:.7rem; color:var(--text-faint); margin-top:2px; }
+    .ring-title { font-family:'Syne',sans-serif; font-size:1rem; font-weight:700; color:#e6eeff; margin-bottom:4px; }
+    .ring-sub   { font-size:.8rem; color:var(--text-faint); }
+
+    /* ── CALCULATION PATH CARDS ── */
+    .calc-paths { display:flex; flex-direction:column; gap:10px; padding:16px; }
+
+    .path-card {
+      display:flex; align-items:center; gap:14px;
+      padding:16px 18px; border-radius:var(--radius-sm);
+      border:1px solid; text-decoration:none;
+      transition:all .25s; position:relative; overflow:hidden;
+      /* reset <button> defaults */
+      background:none; font-family:inherit; width:100%; text-align:left; cursor:pointer;
+    }
+    .path-card::before { content:''; position:absolute; inset:0; opacity:0; transition:opacity .25s; }
+    .path-card:hover::before { opacity:1; }
+    .path-card:hover { transform:translateX(4px); }
+
+    /* green — Continue / Add Next Semester */
+    .path-continue { background:rgba(34,197,94,.05); border-color:rgba(34,197,94,.2); color:var(--green); }
+    .path-continue::before { background:rgba(34,197,94,.05); }
+    .path-continue:hover { border-color:rgba(34,197,94,.5); box-shadow:0 0 20px rgba(34,197,94,.1); }
+
+    /* blue — New / Fresh Session */
+    .path-new { background:rgba(79,142,255,.05); border-color:rgba(79,142,255,.2); color:var(--blue); }
+    .path-new::before { background:rgba(79,142,255,.05); }
+    .path-new:hover { border-color:rgba(79,142,255,.5); box-shadow:0 0 20px rgba(79,142,255,.1); }
+
+    .path-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; border:1px solid; }
+    .path-continue .path-icon { background:rgba(34,197,94,.1); border-color:rgba(34,197,94,.25); }
+    .path-new      .path-icon { background:rgba(79,142,255,.1); border-color:rgba(79,142,255,.25); }
+    .path-icon svg { width:18px; height:18px; }
+
+    .path-text { flex:1; }
+    .path-text strong { display:block; font-size:.9rem; font-weight:700; font-family:'Syne',sans-serif; margin-bottom:2px; }
+    .path-text span   { font-size:.75rem; opacity:.7; font-weight:400; }
+
+    .path-arrow { font-size:.9rem; opacity:.5; transition:transform .2s,opacity .2s; }
+    .path-card:hover .path-arrow { transform:translateX(3px); opacity:1; }
+
+    /* ── QUICK ACTIONS ── */
+    .quick-actions { display:flex; flex-direction:column; gap:8px; }
+    .action-item { display:flex; align-items:center; gap:13px; padding:13px 15px; border-radius:var(--radius-sm);
+      border:1px solid var(--border); text-decoration:none; color:var(--text-dim);
+      font-size:.855rem; font-weight:500; transition:all .2s; background:rgba(79,142,255,.03); }
+    .action-item:hover { border-color:rgba(79,142,255,.3); background:rgba(79,142,255,.08); color:var(--text); transform:translateX(4px); }
+    .action-icon { width:34px; height:34px; border-radius:8px; background:var(--blue-faint);
+      border:1px solid rgba(79,142,255,.15); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .action-icon svg { width:15px; height:15px; color:var(--blue); }
+    .action-item:hover .action-icon { background:rgba(79,142,255,.15); box-shadow:0 0 12px rgba(79,142,255,.3); }
+    .action-arrow { margin-left:auto; color:var(--text-faint); font-size:.75rem; transition:transform .2s; }
+    .action-item:hover .action-arrow { transform:translateX(3px); color:var(--blue); }
+
+    /* ── EMPTY STATE ── */
+    .empty-wrap { padding:80px 40px; text-align:center; }
+    .empty-icon-ring { width:80px; height:80px; border-radius:50%; background:var(--blue-faint);
+      border:1px solid rgba(79,142,255,.2); display:flex; align-items:center; justify-content:center;
+      margin:0 auto 20px; box-shadow:0 0 30px rgba(79,142,255,.15); }
+    .empty-icon-ring svg { width:30px; height:30px; color:var(--blue-dim); }
+    .empty-wrap h4 { font-family:'Syne',sans-serif; font-size:1.15rem; font-weight:700; color:#e6eeff; margin-bottom:10px; }
+    .empty-wrap p  { font-size:.875rem; color:var(--text-faint); line-height:1.7; margin-bottom:24px; }
+
+    @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+
+    @media(max-width:1200px){
+      .stats-grid   { grid-template-columns:repeat(2,1fr); }
+      .content-grid { grid-template-columns:1fr; }
+    }
+    @media(max-width:768px){
+      .sidebar { transform:translateX(-100%); }
+      .main    { margin-left:0; padding:20px; }
+      .stats-grid { grid-template-columns:repeat(2,1fr); }
+    }
+  </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="ambient-glow"></div>
+
+<!-- ══════════════════ SIDEBAR ══════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">◈</div>
+    <div>
+      <div class="logo-text">CGPA<em>Calc</em></div>
+      <div class="logo-sub">Academic Portal</div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Menu</div>
+    <a href="{{ url_for('dashboard') }}" class="nav-item active">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      Dashboard
+    </a>
+    <a href="{{ url_for('index') }}" class="nav-item">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 7h6m0 10v-3m-3 3v-6m-6 6V7a2 2 0 012-2h8a2 2 0 012 2v13"/></svg>
+      Calculator
+    </a>
+    <a href="{{ url_for('profile') }}" class="nav-item">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      Profile
+    </a>
+    <div class="nav-item-logout">
+      <a href="{{ url_for('logout') }}" class="nav-item">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1"/></svg>
+        Logout
+      </a>
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar">{{ session.user_name[0]|upper if session.user_name else "U" }}</div>
+      <div class="user-info">
+        <p>{{ session.user_name or "Student" }}</p>
+        <span>{{ session.user_matric or "" }}</span>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ══════════════════ MAIN ══════════════════ -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-eyebrow">Academic Portal</div>
+      <h1>Dashboard</h1>
+      <p>Welcome back, <strong style="color:var(--blue)">{{ session.user_name or "Student" }}</strong> 👋</p>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  {% if latest %}
+
+  <!-- STAT CARDS -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-card-strip strip-blue"></div>
+      <div class="stat-icon icon-blue">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+      </div>
+      <div class="stat-value">{{ latest.cgpa }}</div>
+      <div class="stat-label">Latest CGPA</div>
+      <div class="stat-badge
+        {% if latest.classification=='First Class' %}badge-first
+        {% elif latest.classification=='Second Class Upper' %}badge-second-u
+        {% elif latest.classification=='Second Class Lower' %}badge-second-l
+        {% elif latest.classification=='Third Class' %}badge-third
+        {% elif latest.classification=='Pass' %}badge-pass
+        {% else %}badge-fail{% endif %}">
+        {{ latest.classification }}
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-card-strip strip-green"></div>
+      <div class="stat-icon icon-green">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      </div>
+      <div class="stat-value">{{ latest.total_units }}</div>
+      <div class="stat-label">Total Credit Units</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-card-strip strip-gold"></div>
+      <div class="stat-icon icon-gold">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      </div>
+      <div class="stat-value">{{ results|length }}</div>
+      <div class="stat-label">Total Calculations</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-card-strip strip-cyan"></div>
+      <div class="stat-icon icon-cyan">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      </div>
+      <div class="stat-value">{{ latest.total_points }}</div>
+      <div class="stat-label">Quality Points</div>
+    </div>
+  </div>
+
+  <!-- CONTENT GRID -->
+  <div class="content-grid">
+
+    <!-- LEFT: HISTORY TABLE -->
+    <div class="glass-card">
+      <div class="card-head">
+        <div class="card-head-left">
+          <div class="card-head-dot"></div>
+          <div>
+            <h3>Result History</h3>
+            <p>All your saved CGPA calculations</p>
+          </div>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>CGPA</th><th>Classification</th>
+            <th>Units</th><th>Semesters</th><th>Type</th><th>Date</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in results %}
+          <tr>
+            <td class="mono" style="color:var(--text-faint)">{{ loop.index }}</td>
+            <td><span class="cgpa-strong">{{ r.cgpa }}</span></td>
+            <td>
+              <span class="grade-chip
+                {% if r.classification=='First Class' %}chip-first
+                {% elif r.classification=='Second Class Upper' %}chip-second-u
+                {% elif r.classification=='Second Class Lower' %}chip-second-l
+                {% elif r.classification=='Third Class' %}chip-third
+                {% elif r.classification=='Pass' %}chip-pass
+                {% else %}chip-fail{% endif %}">
+                {{ r.classification }}
+              </span>
+            </td>
+            <td class="mono">{{ r.total_units }}</td>
+            <td class="mono">{{ r.semesters|length }}</td>
+            <td>
+              {% if r.is_continuation %}
+                <span class="grade-chip chip-update">Update</span>
+              {% else %}
+                <span class="grade-chip" style="background:rgba(56,189,248,.1);color:var(--cyan);border-color:rgba(56,189,248,.2)">Fresh</span>
+              {% endif %}
+            </td>
+            <td style="color:var(--text-faint);font-size:.78rem;font-family:'JetBrains Mono',monospace;">{{ r.date_display }}</td>
+            <td>
+              <div class="row-actions">
+                <a href="{{ url_for('profile', result_id=r.id) }}" class="btn btn-outline-sm">View</a>
+                <a href="{{ url_for('download_result', result_id=r.id) }}" class="btn btn-green">⬇ PDF</a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div><!-- /history table -->
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel">
+
+      <!-- CGPA RING -->
+      <div class="glass-card">
+        <div class="ring-wrap">
+          <div class="cgpa-ring-outer">
+            <svg viewBox="0 0 100 100">
+              <defs>
+                <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#2959d4"/>
+                  <stop offset="100%" stop-color="#4f8eff"/>
+                </linearGradient>
+              </defs>
+              <circle class="cgpa-track" cx="50" cy="50" r="42"/>
+              <circle class="cgpa-fill"  cx="50" cy="50" r="42"
+                stroke-dasharray="264"
+                stroke-dashoffset="{{ 264 - ((latest.cgpa / 5) * 264)|round(1) }}"/>
+            </svg>
+            <div class="cgpa-ring-center">
+              <div class="val">{{ latest.cgpa }}</div>
+              <div class="denom">/ 5.00</div>
+            </div>
+          </div>
+          <div class="ring-title">Latest CGPA</div>
+          <div class="ring-sub">{{ latest.classification }}</div>
+        </div>
+      </div>
+
+      <!-- CALCULATE — two path cards -->
+      <div class="glass-card">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="card-head-dot" style="background:var(--green);box-shadow:0 0 8px var(--green)"></div>
+            <div>
+              <h3>Calculate</h3>
+              <p>Continue or start fresh</p>
+            </div>
+          </div>
+        </div>
+        <div class="calc-paths">
+
+          <!-- PATH 1: Continue — add semesters on top of latest CGPA -->
+          <a href="{{ url_for('continue_calc') }}" class="path-card path-continue">
+            <div class="path-icon">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 8v8m-4-4h8"/>
+              </svg>
+            </div>
+            <div class="path-text">
+              <strong>Continue with Next Semester</strong>
+              <span>Add onto your current CGPA of {{ latest.cgpa }}</span>
+            </div>
+            <span class="path-arrow">→</span>
+          </a>
+
+          <!-- PATH 2: Fresh — confirm before navigating -->
+          <button type="button" class="path-card path-new" onclick="confirmNewSession()">
+            <div class="path-icon">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M4 4h16v16H4z" stroke-dasharray="4 2"/>
+                <path d="M12 8v8m-4-4h8"/>
+              </svg>
+            </div>
+            <div class="path-text">
+              <strong>Start Fresh Calculation</strong>
+              <span>New session — enter all semesters from scratch</span>
+            </div>
+            <span class="path-arrow">→</span>
+          </button>
+
+        </div>
+      </div>
+
+      <!-- QUICK ACTIONS -->
+      <div class="glass-card">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="card-head-dot" style="background:var(--cyan);box-shadow:0 0 8px var(--cyan)"></div>
+            <h3>Quick Actions</h3>
+          </div>
+        </div>
+        <div class="card-body" style="padding:16px;">
+          <div class="quick-actions">
+            <a href="{{ url_for('profile') }}" class="action-item">
+              <div class="action-icon">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+              </div>
+              View Latest Profile <span class="action-arrow">→</span>
+            </a>
+            <a href="{{ url_for('download_result', result_id=latest.id) }}" class="action-item">
+              <div class="action-icon">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              </div>
+              Download Latest PDF <span class="action-arrow">→</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /right-panel -->
+  </div><!-- /content-grid -->
+
+  {% else %}
+
+  <!-- EMPTY STATE -->
+  <div class="glass-card">
+    <div class="empty-wrap">
+      <div class="empty-icon-ring">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      </div>
+      <h4>No Results Yet</h4>
+      <p>You haven't calculated your CGPA yet.<br>Start a new calculation to populate your dashboard.</p>
+      <a href="{{ url_for('index') }}" class="btn btn-primary">Start Calculation →</a>
+    </div>
+  </div>
+
+  {% endif %}
+</main>
+
+<script>
+  /**
+   * Warns the user before wiping their current session and starting fresh.
+   * Navigates only if they confirm; existing records are never deleted.
+   */
+  function confirmNewSession() {
+    const ok = confirm(
+      "Start a brand-new academic session?\n\n" +
+      "This will open a fresh calculation starting from 100 level.\n" +
+      "Your existing records will NOT be deleted — you can still view them in History.\n\n" +
+      "Continue?"
+    );
+    if (ok) {
+      window.location.href = "{{ url_for('index') }}";
+    }
+  }
+</script>
+</body>
+</html>

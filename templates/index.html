@@ -30,14 +30,26 @@
 
     <!-- ════════════════════════════════════════════════════════════════
          STEP 1 — STUDENT INFORMATION
+         Supports both fresh starts and continuation (prefill variable).
     ═════════════════════════════════════════════════════════════════ -->
     {% if step == "info" %}
     <section class="card fade-in">
       <div class="card-label">Step 01</div>
-      <h1 class="card-title">Student Information</h1>
-      <p class="card-subtitle">
-        Enter your details and the number of semesters to compute your CGPA.
-      </p>
+
+      {% if prefill %}
+        {# ── CONTINUATION MODE ── #}
+        <h1 class="card-title">Add New Semester</h1>
+        <p class="card-subtitle">
+          Your student details are pre-filled from your last record.
+          Just confirm the number of <strong>new</strong> semesters you want to add.
+        </p>
+      {% else %}
+        {# ── FRESH START ── #}
+        <h1 class="card-title">Student Information</h1>
+        <p class="card-subtitle">
+          Enter your details and the number of semesters to compute your CGPA.
+        </p>
+      {% endif %}
 
       {% if error %}
       <div class="alert alert-error">⚠ {{ error }}</div>
@@ -45,43 +57,109 @@
 
       <form action="/semesters" method="POST" class="form-grid">
 
+        <!-- Full Name -->
         <div class="field-group">
           <label for="name">Full Name</label>
-          <input type="text" id="name" name="name"
-                 placeholder="e.g. Adaeze Okonkwo" required />
+          <input
+            type="text"
+            id="name"
+            name="name"
+            placeholder="e.g. Adaeze Okonkwo"
+            value="{{ prefill.name if prefill else '' }}"
+            {% if prefill %}readonly{% endif %}
+            required
+          />
         </div>
 
+        <!-- Matric Number -->
         <div class="field-group">
           <label for="matric_no">Matric Number</label>
-          <input type="text" id="matric_no" name="matric_no"
-                 placeholder="e.g. 22/ENG/0042" required />
+          <input
+            type="text"
+            id="matric_no"
+            name="matric_no"
+            placeholder="e.g. 22/ENG/0042"
+            value="{{ prefill.matric_no if prefill else '' }}"
+            {% if prefill %}readonly{% endif %}
+            required
+          />
         </div>
 
+        <!-- Programme -->
         <div class="field-group">
           <label for="programme">Programme</label>
-          <input type="text" id="programme" name="programme"
-                 placeholder="e.g. B.Eng. Computer Engineering" required />
+          <input
+            type="text"
+            id="programme"
+            name="programme"
+            placeholder="e.g. B.Eng. Computer Engineering"
+            value="{{ prefill.programme if prefill else '' }}"
+            {% if prefill %}readonly{% endif %}
+            required
+          />
         </div>
 
+        <!-- Department -->
         <div class="field-group">
           <label for="department">Department</label>
-          <input type="text" id="department" name="department"
-                 placeholder="e.g. Computer Engineering" required />
+          <input
+            type="text"
+            id="department"
+            name="department"
+            placeholder="e.g. Computer Engineering"
+            value="{{ prefill.department if prefill else '' }}"
+            {% if prefill %}readonly{% endif %}
+            required
+          />
         </div>
 
+        <!-- Faculty -->
         <div class="field-group">
           <label for="faculty">Faculty</label>
-          <input type="text" id="faculty" name="faculty"
-                 placeholder="e.g. Engineering" required />
+          <input
+            type="text"
+            id="faculty"
+            name="faculty"
+            placeholder="e.g. Engineering"
+            value="{{ prefill.faculty if prefill else '' }}"
+            {% if prefill %}readonly{% endif %}
+            required
+          />
         </div>
 
+        <!-- Number of Semesters -->
         <div class="field-group">
-          <label for="num_semesters">Number of Semesters Completed</label>
-          <input type="number" id="num_semesters" name="num_semesters"
-                 min="1" max="20" placeholder="e.g. 4" required />
+          <label for="num_semesters">
+            {% if prefill %}
+              Number of New Semesters to Add
+            {% else %}
+              Number of Semesters Completed
+            {% endif %}
+          </label>
+          <input
+            type="number"
+            id="num_semesters"
+            name="num_semesters"
+            min="1"
+            max="20"
+            placeholder="e.g. 1"
+            value="{{ prefill.num_semesters if prefill else '' }}"
+            required
+          />
+          {% if prefill %}
+          <small style="color:var(--text-faint,#888);font-size:.78rem;margin-top:4px;display:block;">
+            Enter only the semesters you want to add now (e.g. 1 or 2).
+            Your previous {{ prefill.get('prev_semester_count', '') }} semester(s) are already saved.
+          </small>
+          {% endif %}
         </div>
 
         <div class="form-actions">
+          {% if prefill %}
+            <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">← Cancel</a>
+          {% else %}
+            <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">← Back</a>
+          {% endif %}
           <button type="submit" class="btn btn-primary">
             Continue <span class="btn-arrow">→</span>
           </button>
@@ -128,7 +206,7 @@
         {% endfor %}
 
         <div class="form-actions">
-          <a href="/" class="btn btn-ghost">← Back</a>
+          <a href="{{ url_for('index') }}" class="btn btn-ghost">← Back</a>
           <button type="submit" class="btn btn-primary">
             Generate Course Rows <span class="btn-arrow">→</span>
           </button>
@@ -233,7 +311,7 @@
         {% endfor %}
 
         <div class="form-actions">
-          <a href="/" class="btn btn-ghost">← Back</a>
+          <a href="{{ url_for('index') }}" class="btn btn-ghost">← Back</a>
           <button type="submit" class="btn btn-primary">
             Calculate CGPA <span class="btn-arrow">◈</span>
           </button>
@@ -341,7 +419,8 @@
       {% endfor %}
 
       <div class="form-actions">
-        <a href="/" class="btn btn-primary">← Start New Calculation</a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">← Dashboard</a>
+        <a href="{{ url_for('index') }}" class="btn btn-primary">Start New Calculation</a>
       </div>
 
     </section>
