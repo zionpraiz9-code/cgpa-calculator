@@ -171,6 +171,3 @@ Some useful future enhancements:
 
 ---
 
-## License
-
-This documentation does not include a license. Add a `LICENSE` file if you want to publish or share the project.

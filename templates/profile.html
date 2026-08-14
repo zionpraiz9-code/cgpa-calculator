@@ -579,7 +579,13 @@
           <tr>
             <td><strong class="mono">{{ course.code }}</strong></td>
             <td class="mono">{{ course.unit }}</td>
-            <td class="mono">{{ course.score }}</td>
+            <td class="mono">
+              {% if course.input_mode == 'grade' %}
+                Grade: {{ course.grade }}
+              {% else %}
+                {{ course.score }}
+              {% endif %}
+            </td>
             <td>
               <span class="grade-chip grade-{{ course.grade }}">{{ course.grade }}</span>
             </td>

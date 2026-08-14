@@ -268,7 +268,7 @@
                   <th>#</th>
                   <th>Course Code</th>
                   <th>Credit Units</th>
-                  <th>Score (0–100)</th>
+                  <th>Score / Grade</th>
                   <th></th>
                 </tr>
               </thead>
@@ -289,10 +289,37 @@
                            class="tbl-input tbl-num" required />
                   </td>
                   <td>
-                    <input type="number"
-                           name="sem_{{ s }}_course_{{ c }}_score"
-                           min="0" max="100" placeholder="75"
-                           class="tbl-input tbl-num" required />
+                    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                      <select name="sem_{{ s }}_course_{{ c }}_input_mode"
+                              class="tbl-input input-mode-select"
+                              style="width:130px"
+                              onchange="toggleCourseInputMode(this)">
+                        <option value="score" selected>Enter Score</option>
+                        <option value="grade">Enter Grade</option>
+                      </select>
+
+                      <div class="score-wrapper" style="display:flex;gap:6px;align-items:center;">
+                        <input type="number"
+                               name="sem_{{ s }}_course_{{ c }}_score"
+                               min="0" max="100" placeholder="75"
+                               class="tbl-input tbl-num score-input" />
+                      </div>
+
+                      <div class="grade-wrapper" style="display:none;align-items:center;">
+                        <select name="sem_{{ s }}_course_{{ c }}_grade"
+                                class="tbl-input grade-select"
+                                style="width:90px">
+                          <option value="">Grade</option>
+                          <option value="A">A</option>
+                          <option value="B">B</option>
+                          <option value="C">C</option>
+                          <option value="D">D</option>
+                          <option value="E">E</option>
+                          <option value="F">F</option>
+                        </select>
+                      </div>
+                    </div>
+                    <small style="color:var(--text-faint,#888);display:block;margin-top:4px;">Choose an entry mode and provide either a score or a grade.</small>
                   </td>
                   <td>
                     <button type="button" class="btn-icon btn-del"
@@ -395,7 +422,13 @@
               <tr>
                 <td class="course-code">{{ c.code }}</td>
                 <td>{{ c.unit }}</td>
-                <td>{{ c.score }}</td>
+                <td>
+                  {% if c.input_mode == 'grade' %}
+                    Grade: {{ c.grade }}
+                  {% else %}
+                    {{ c.score }}
+                  {% endif %}
+                </td>
                 <td>
                   <span class="grade-pill grade-{{ c.grade }}">{{ c.grade }}</span>
                 </td>
@@ -440,6 +473,26 @@
      * Appends a new course row to the given semester's table
      * and increments the hidden course-count field.
      */
+    function toggleCourseInputMode(selectEl) {
+      const row = selectEl.closest('tr');
+      if (!row) return;
+
+      const scoreWrapper = row.querySelector('.score-wrapper');
+      const gradeWrapper = row.querySelector('.grade-wrapper');
+      const scoreInput = row.querySelector('.score-input');
+      const gradeSelect = row.querySelector('.grade-select');
+
+      if (selectEl.value === 'grade') {
+        if (scoreWrapper) scoreWrapper.style.display = 'none';
+        if (gradeWrapper) gradeWrapper.style.display = 'flex';
+        if (scoreInput) scoreInput.value = '';
+      } else {
+        if (scoreWrapper) scoreWrapper.style.display = 'flex';
+        if (gradeWrapper) gradeWrapper.style.display = 'none';
+        if (gradeSelect) gradeSelect.value = '';
+      }
+    }
+
     function addCourse(semNum) {
       const tbody   = document.querySelector(`#table-sem-${semNum} tbody`);
       const counter = document.getElementById(`sem_${semNum}_count`);
@@ -464,10 +517,36 @@
                  class="tbl-input tbl-num" required />
         </td>
         <td>
-          <input type="number"
-                 name="sem_${semNum}_course_${newIdx}_score"
-                 min="0" max="100" placeholder="70"
-                 class="tbl-input tbl-num" required />
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <select name="sem_${semNum}_course_${newIdx}_input_mode"
+                    class="tbl-input input-mode-select"
+                    style="width:130px"
+                    onchange="toggleCourseInputMode(this)">
+              <option value="score" selected>Enter Score</option>
+              <option value="grade">Enter Grade</option>
+            </select>
+
+            <div class="score-wrapper" style="display:flex;gap:6px;align-items:center;">
+              <input type="number"
+                     name="sem_${semNum}_course_${newIdx}_score"
+                     min="0" max="100" placeholder="70"
+                     class="tbl-input tbl-num score-input" />
+            </div>
+
+            <div class="grade-wrapper" style="display:none;align-items:center;">
+              <select name="sem_${semNum}_course_${newIdx}_grade"
+                      class="tbl-input grade-select"
+                      style="width:90px">
+                <option value="">Grade</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+                <option value="E">E</option>
+                <option value="F">F</option>
+              </select>
+            </div>
+          </div>
         </td>
         <td>
           <button type="button" class="btn-icon btn-del"
@@ -493,12 +572,17 @@
         const idx = i + 1;
         row.querySelector(".row-num").textContent = idx;
 
-        const [codeInput, unitInput, scoreInput] = row.querySelectorAll(
-          "input[type='text'], input[type='number']"
-        );
-        codeInput.name  = `sem_${semNum}_course_${idx}_code`;
-        unitInput.name  = `sem_${semNum}_course_${idx}_unit`;
-        scoreInput.name = `sem_${semNum}_course_${idx}_score`;
+        const codeInput = row.querySelector("input[type='text']");
+        const unitInput = row.querySelector("input[name$='_unit']");
+        const scoreInput = row.querySelector("input[name$='_score']");
+        const gradeSelect = row.querySelector("select[name$='_grade']");
+        const modeSelect = row.querySelector("select[name$='_input_mode']");
+
+        if (codeInput) codeInput.name  = `sem_${semNum}_course_${idx}_code`;
+        if (unitInput) unitInput.name  = `sem_${semNum}_course_${idx}_unit`;
+        if (modeSelect) modeSelect.name = `sem_${semNum}_course_${idx}_input_mode`;
+        if (scoreInput) scoreInput.name = `sem_${semNum}_course_${idx}_score`;
+        if (gradeSelect) gradeSelect.name = `sem_${semNum}_course_${idx}_grade`;
 
         const delBtn = row.querySelector(".btn-del");
         if (delBtn) delBtn.setAttribute("onclick", `removeRow(this, ${semNum})`);

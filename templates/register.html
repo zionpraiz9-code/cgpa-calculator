@@ -214,6 +214,8 @@
           <input type="text" id="matric" name="matric"
                  placeholder="e.g. U21CS1042"
                  value="{{ form.matric if form else '' }}"
+                 pattern="[A-Z0-9/\-]{3,20}"
+                 title="Matric number must be 3-20 characters, containing only uppercase letters, numbers, slashes, and hyphens"
                  autocomplete="username"/>
           {% if errors and errors.matric %}
           <p class="err-msg">↑ {{ errors.matric }}</p>
@@ -225,6 +227,8 @@
           <input type="email" id="email" name="email"
                  placeholder="you@university.edu.ng"
                  value="{{ form.email if form else '' }}"
+                 pattern="[^@\s]+@[^@\s]+\.[^@\s]+"
+                 title="Please enter a valid email address"
                  autocomplete="email"/>
           {% if errors and errors.email %}
           <p class="err-msg">↑ {{ errors.email }}</p>
@@ -279,6 +283,7 @@
         <div class="input-wrap">
           <input type="password" id="password" name="password"
                  placeholder="Min. 8 characters"
+                 minlength="8"
                  autocomplete="new-password"
                  oninput="updateStrength(this.value)"/>
           <button type="button" class="eye-btn" onclick="togglePw(this,'password')" title="Show/hide">

@@ -19,7 +19,7 @@ from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
                                  TableStyle, HRFlowable)
 from reportlab.lib.enums import TA_CENTER
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ───────────────── ────────────────────────────────────────────────────────────
 #  APP & DATABASE CONFIGURATION
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -144,6 +144,15 @@ def login_required(f):
 #  CGPA HELPER FUNCTIONS
 # ─────────────────────────────────────────────────────────────────────────────
 
+GRADE_POINT_MAP = {
+    "A": 5, "B": 4, "C": 3,
+    "D": 2, "E": 1, "F": 0,
+}
+GRADE_REP_SCORE = {
+    "A": 85, "B": 65, "C": 55,
+    "D": 47, "E": 42, "F": 20,
+}
+
 def get_grade_and_point(score: int) -> tuple[str, int]:
     if 70 <= score <= 100: return "A", 5
     elif 60 <= score < 70: return "B", 4
@@ -151,6 +160,13 @@ def get_grade_and_point(score: int) -> tuple[str, int]:
     elif 45 <= score < 50: return "D", 2
     elif 40 <= score < 45: return "E", 1
     else:                  return "F", 0
+
+
+def get_grade_point_and_rep_score(letter: str) -> tuple[int, int]:
+    letter = letter.strip().upper()
+    if letter not in GRADE_POINT_MAP:
+        raise ValueError("Invalid grade letter")
+    return GRADE_POINT_MAP[letter], GRADE_REP_SCORE[letter]
 
 
 def calculate_gpa(courses: list[dict]) -> tuple[float, int, int]:
@@ -296,9 +312,13 @@ def generate_pdf_bytes(result: CGPAResult) -> bytes:
     table_data = [header]
     for sem in semesters:
         for course in sem["courses"]:
+            score_display = (
+                f"Grade: {course['grade']}" if course.get("input_mode", "score") == "grade"
+                else str(course["score"])
+            )
             table_data.append([
                 f"Semester {sem['number']}", course["code"],
-                str(course["unit"]), str(course["score"]),
+                str(course["unit"]), score_display,
                 course["grade"], str(course["gp"]), str(course["weighted"]),
             ])
 
@@ -642,18 +662,42 @@ def results():
                 errors.append(f"Semester {s}, {code}: {unit_err}")
                 continue
 
+            raw_input_mode = request.form.get(
+                f"sem_{s}_course_{c}_input_mode", "score"
+            ).strip().lower()
             raw_score = request.form.get(f"sem_{s}_course_{c}_score", "").strip()
-            try:
-                score = int(raw_score)
-                if not (0 <= score <= 100): raise ValueError
-            except (ValueError, TypeError):
-                errors.append(f"Semester {s}, {code}: score must be between 0 and 100.")
-                continue
+            raw_grade = request.form.get(f"sem_{s}_course_{c}_grade", "").strip().upper()
 
-            grade, gp = get_grade_and_point(score)
+            score = None
+            grade = None
+            gp = None
+            input_mode = raw_input_mode if raw_input_mode in ("score", "grade") else "score"
+
+            if input_mode == "score":
+                if not raw_score:
+                    errors.append(f"Semester {s}, {code}: score is required when Enter Score is selected.")
+                    continue
+                try:
+                    score = int(raw_score)
+                    if not (0 <= score <= 100): raise ValueError
+                except (ValueError, TypeError):
+                    errors.append(f"Semester {s}, {code}: score must be between 0 and 100.")
+                    continue
+                grade, gp = get_grade_and_point(score)
+            else:
+                if not raw_grade:
+                    errors.append(f"Semester {s}, {code}: grade is required when Enter Grade is selected.")
+                    continue
+                try:
+                    gp, score = get_grade_point_and_rep_score(raw_grade)
+                    grade = raw_grade
+                except ValueError:
+                    errors.append(f"Semester {s}, {code}: invalid grade selected.")
+                    continue
             courses_list.append({
                 "code": code, "unit": unit, "score": score,
                 "grade": grade, "gp": gp, "weighted": unit * gp,
+                "input_mode": input_mode,
             })
 
         # Label new semesters correctly even when continuing
