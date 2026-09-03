@@ -235,9 +235,9 @@ def parse_positive_int(value, label: str) -> tuple:
 
 DARK_BLUE  = colors.HexColor("#0a1628")
 BRAND_BLUE = colors.HexColor("#1a56db")
-AMBER      = colors.HexColor("#f59e0b")
+AMBER      = colors.HexColor("#f59f0b71")
 SLATE      = colors.HexColor("#475569")
-LIGHT_BG   = colors.HexColor("#f8fafc")
+LIGHT_BG   = colors.HexColor("#f8fafc6a")
 WHITE      = colors.white
 
 
