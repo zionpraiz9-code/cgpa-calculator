@@ -501,7 +501,16 @@ def index():
     session.pop("prev_total_units",   None)
     session.pop("prev_total_points",  None)
     session.pop("prev_semester_count",None)
-    return render_template("index.html", step="info")
+
+    user = User.query.get(session.get("user_id"))
+    prefill = {
+        "name": user.full_name,
+        "matric_no": user.matric,
+        "programme": user.programme,
+        "department": user.department,
+        "faculty": user.faculty,
+    } if user else None
+    return render_template("index.html", step="info", prefill=prefill)
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  CONTINUE CALCULATION — add new semesters on top of existing record
@@ -547,7 +556,7 @@ def continue_calc():
         f"Just enter your NEW semester(s) below.",
         "info"
     )
-    return render_template("index.html", step="info", prefill=session["student"])
+    return render_template("index.html", step="info", prefill=session["student"], continuation=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  SEMESTERS STEP
@@ -564,14 +573,14 @@ def semesters():
 
     if not all([name, matric_no, programme, department, faculty]):
         flash("All student information fields are required.", "danger")
-        return render_template("index.html", step="info")
+        return render_template("index.html", step="info", prefill=session.get("student"))
 
     num_semesters, err = parse_positive_int(
         request.form.get("num_semesters"), "Number of semesters"
     )
     if err:
         flash(err, "danger")
-        return render_template("index.html", step="info")
+        return render_template("index.html", step="info", prefill=session.get("student"))
 
     session["student"] = {
         "name": name, "matric_no": matric_no, "programme": programme,

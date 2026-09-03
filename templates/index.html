@@ -36,7 +36,7 @@
     <section class="card fade-in">
       <div class="card-label">Step 01</div>
 
-      {% if prefill %}
+      {% if continuation %}
         {# ── CONTINUATION MODE ── #}
         <h1 class="card-title">Add New Semester</h1>
         <p class="card-subtitle">
@@ -130,7 +130,7 @@
         <!-- Number of Semesters -->
         <div class="field-group">
           <label for="num_semesters">
-            {% if prefill %}
+            {% if continuation %}
               Number of New Semesters to Add
             {% else %}
               Number of Semesters Completed
@@ -146,7 +146,7 @@
             value="{{ prefill.num_semesters if prefill else '' }}"
             required
           />
-          {% if prefill %}
+          {% if continuation %}
           <small style="color:var(--text-faint,#888);font-size:.78rem;margin-top:4px;display:block;">
             Enter only the semesters you want to add now (e.g. 1 or 2).
             Your previous {{ prefill.get('prev_semester_count', '') }} semester(s) are already saved.
@@ -155,7 +155,7 @@
         </div>
 
         <div class="form-actions">
-          {% if prefill %}
+          {% if continuation %}
             <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">← Cancel</a>
           {% else %}
             <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">← Back</a>
