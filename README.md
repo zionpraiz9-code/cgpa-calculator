@@ -7,6 +7,7 @@ A Flask-based web app for university students to calculate, store, and download 
 ## Features
 
 - User registration and login with secure password hashing
+- School-email registration restricted to `@tech-u.edu.ng` with OTP verification
 - Password reset flow using time-limited tokens
 - Fresh CGPA calculation for a new academic record
 - Continuation mode to add new semester data on top of previous CGPA
@@ -42,13 +43,14 @@ A Flask-based web app for university students to calculate, store, and download 
 - Flask-SQLAlchemy
 - Werkzeug
 - reportlab
+- Flask-Mail
 
 If you are using a virtual environment, install dependencies like this:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\activate
-python -m pip install flask flask_sqlalchemy reportlab
+python -m pip install flask flask_sqlalchemy flask-mail reportlab
 ```
 
 > Note: `werkzeug` is typically installed as a dependency of `flask`.
@@ -72,7 +74,7 @@ cd "c:\Users\User pc\Desktop\HTML-CSS-COURSE\CGPA_PROJECT"
 3. Install dependencies:
 
 ```powershell
-python -m pip install flask flask_sqlalchemy reportlab
+python -m pip install flask flask_sqlalchemy flask-mail reportlab
 ```
 
 4. Run the app:
@@ -96,6 +98,8 @@ http://127.0.0.1:5000/
 - `/` — Landing page
 - `/register` — Create a new account
 - `/login` — Sign in
+- `/verify-otp` — Verify a school email with a six-digit OTP
+- `/resend-otp` — Send a replacement OTP
 - `/forgot-password` — Request password reset
 - `/reset-password/<token>` — Reset password using token
 
@@ -128,6 +132,7 @@ http://127.0.0.1:5000/
 - `department`
 - `programme`
 - `password` (hashed)
+- `is_verified`
 
 ### `CGPAResult`
 
@@ -148,12 +153,36 @@ http://127.0.0.1:5000/
 - `expires_at`
 - `used`
 
+### `EmailOTP`
+
+- `user_id`
+- `otp_code`
+- `expires_at` — ten minutes after creation
+- `used`
+- `created_at`
+
 ---
 
 ## Notes and Development
 
 - The app uses an SQLite database file `users_fixed.db` created automatically on first run.
-- The password reset route currently shows the reset link in a flash message for development/testing.
+- The password reset route shows the reset link in a flash message when `DEV_MODE=true`.
+- OTP delivery defaults to real email sending. Set `DEV_MODE=true` only for local OTP testing. Configure SMTP before use:
+
+```powershell
+$env:DEV_MODE="false"
+$env:MAIL_SERVER="smtp.gmail.com"
+$env:MAIL_PORT="587"
+$env:MAIL_USERNAME="your-school-email@tech-u.edu.ng"
+$env:MAIL_PASSWORD="your-email-app-password"
+$env:MAIL_USE_TLS="true"
+$env:MAIL_DEFAULT_SENDER="your-school-email@tech-u.edu.ng"
+```
+
+For Gmail, `MAIL_PASSWORD` must be a Gmail App Password, not your normal Gmail password. Create it in your Google Account security settings after enabling 2-Step Verification, then set that App Password in `$env:MAIL_PASSWORD` (or in the environment used to start the app). `App.py` reads it in the mail configuration block and passes it to `Mail(app)`.
+
+- In `DEV_MODE=true`, the OTP is flashed on the verification page and logged by the application instead of being sent.
+- On startup, the app adds the `users.is_verified` column and `email_otps` table without deleting existing data. Existing users are marked verified so they are not locked out by the new registration requirement; only new accounts require OTP verification.
 - Session lifetime is configured for 7 days.
 - The PDF generator uses `reportlab` to produce a styled academic report.
 

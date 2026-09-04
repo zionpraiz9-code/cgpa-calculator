@@ -6,10 +6,10 @@
   <title>Register — CGPA Portal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { font-family: 'Outfit', sans-serif; background: #060a14; color: #d8e4ff; }
+    html, body { font-family: 'Atkinson Hyperlegible', sans-serif; background: #060a14; color: #d8e4ff; }
 
     .grid-bg {
       position: fixed; inset: 0; z-index: 0;
@@ -60,12 +60,12 @@
       animation: pulse 2.2s ease-in-out infinite;
     }
     @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.7)} }
-    .status-txt { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: .18em; text-transform: uppercase; color: rgba(34,197,94,.65); }
+    .status-txt { font-family: 'Fira Code', monospace; font-size: 9.5px; letter-spacing: .18em; text-transform: uppercase; color: rgba(34,197,94,.65); }
 
     /* ── header ── */
     .eyebrow {
       display: flex; align-items: center; justify-content: center; gap: 10px;
-      font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+      font-family: 'Fira Code', monospace; font-size: 9.5px;
       letter-spacing: .2em; text-transform: uppercase;
       color: rgba(110,138,210,.45); margin-bottom: 10px;
     }
@@ -79,7 +79,7 @@
       margin: 20px 0 12px;
     }
     .section-label span {
-      font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+      font-family: 'Fira Code', monospace; font-size: 9.5px;
       letter-spacing: .18em; text-transform: uppercase;
       color: rgba(110,138,195,.45); font-weight: 500; white-space: nowrap;
     }
@@ -93,7 +93,7 @@
     .field { margin-bottom: 14px; }
     label {
       display: block;
-      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      font-family: 'Fira Code', monospace; font-size: 10px;
       font-weight: 500; letter-spacing: .1em; text-transform: uppercase;
       color: rgba(115,138,195,.5); margin-bottom: 7px;
       transition: color .3s;
@@ -112,7 +112,8 @@
       border: 1.5px solid rgba(79,142,255,.1);
       border-radius: 10px; outline: none;
       color: #d8e4ff;
-      font-family: 'JetBrains Mono', monospace; font-size: 13.5px; letter-spacing: .03em;
+      font-family: 'Fira Code', monospace; font-size: 13.5px; font-weight: 500; letter-spacing: .03em;
+      font-variant-numeric: tabular-nums;
       transition: all .32s ease;
     }
     input[type="password"] { padding-right: 44px; }
@@ -134,7 +135,7 @@
     /* ── field errors ── */
     .field-error input,
     .field-error select { border-color: rgba(239,68,68,.6) !important; background: rgba(239,68,68,.04) !important; }
-    .err-msg { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #ef4444; margin-top: 5px; }
+    .err-msg { font-family: 'Fira Code', monospace; font-size: 11px; color: #ef4444; margin-top: 5px; }
 
     /* helper text */
     .helper { font-size: 11px; color: rgba(115,138,195,.42); margin-top: 5px; }
@@ -151,14 +152,14 @@
     /* ── strength bar ── */
     .strength-bar { display: flex; gap: 5px; margin: 8px 0 4px; }
     .strength-bar div { flex: 1; height: 3px; border-radius: 2px; background: rgba(79,142,255,.1); transition: background .35s; }
-    .strength-txt { font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-bottom: 8px; transition: color .35s; }
+    .strength-txt { font-family: 'Fira Code', monospace; font-size: 11px; margin-bottom: 8px; transition: color .35s; }
 
     /* ── primary button ── */
     .btn-primary {
       display: block; width: 100%; padding: 14px 20px;
       background: linear-gradient(135deg, #2959d4 0%, #4f8eff 65%, #6ba4ff 100%);
       border: none; border-radius: 10px; cursor: pointer;
-      color: #fff; font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 600;
+      color: #fff; font-family: 'Atkinson Hyperlegible', sans-serif; font-size: 14px; font-weight: 700;
       letter-spacing: .06em; margin-top: 6px;
       box-shadow: 0 4px 22px rgba(79,142,255,.3);
       transition: transform .15s, box-shadow .15s;
@@ -169,11 +170,11 @@
     /* ── divider ── */
     .divider { display: flex; align-items: center; gap: 12px; margin: 20px 0 14px; }
     .divider hr { flex: 1; border: none; height: 1px; background: rgba(79,142,255,.1); }
-    .divider span { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase; color: rgba(110,138,205,.35); }
+    .divider span { font-family: 'Fira Code', monospace; font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase; color: rgba(110,138,205,.35); }
 
     /* ── footer ── */
     .foot-txt { font-size: 12.5px; color: rgba(115,138,205,.45); text-align: center; }
-    .foot-link { background: none; border: none; cursor: pointer; color: #4f8eff; font-weight: 600; font-size: 12.5px; font-family: 'Outfit', sans-serif; padding: 0; }
+    .foot-link { background: none; border: none; cursor: pointer; color: #4f8eff; font-weight: 700; font-size: 12.5px; font-family: 'Atkinson Hyperlegible', sans-serif; padding: 0; }
   </style>
 </head>
 <body>

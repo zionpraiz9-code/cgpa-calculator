@@ -2,8 +2,10 @@ import os
 import re
 import json
 import secrets
+import smtplib
 from io import BytesIO
 from datetime import datetime, timedelta
+from email.message import EmailMessage
 from flask import (Flask, render_template, request, session,
                    redirect, url_for, flash, send_file)
 from flask_sqlalchemy import SQLAlchemy
@@ -26,6 +28,12 @@ from reportlab.lib.enums import TA_CENTER
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-this-in-production-please")
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
+app.config["DEV_MODE"] = os.environ.get("DEV_MODE", "true").lower() in ("1", "true", "yes")
+app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
+app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", "587"))
+app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME", "")
+app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD", "")
+app.config["MAIL_USE_TLS"] = os.environ.get("MAIL_USE_TLS", "true").lower() in ("1", "true", "yes")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(BASE_DIR, 'users_fixed.db')}"
@@ -48,12 +56,27 @@ class User(db.Model):
     department = db.Column(db.String(100), nullable=False)
     programme  = db.Column(db.String(100), nullable=False)
     password   = db.Column(db.String(255), nullable=False)
+    is_verified = db.Column(db.Boolean, default=False, nullable=False)
 
     results      = db.relationship("CGPAResult",    backref="user", lazy=True, cascade="all, delete-orphan")
     reset_tokens = db.relationship("PasswordReset", backref="user", lazy=True, cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User {self.matric} — {self.full_name}>"
+
+
+class EmailOTP(db.Model):
+    __tablename__ = "email_otps"
+
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    otp_code   = db.Column(db.String(6), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used       = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship("User", backref=db.backref("email_otps", lazy=True,
+                                                        cascade="all, delete-orphan"))
 
 
 class CGPAResult(db.Model):
@@ -105,12 +128,21 @@ class PasswordReset(db.Model):
 with app.app_context():
     db.create_all()
 
-    # ── ONE-TIME MIGRATION: add is_continuation if it doesn't exist yet ──────
+    # ── ONE-TIME MIGRATIONS: preserve existing data while adding new fields ──
     from sqlalchemy import text, inspect as sa_inspect
     with db.engine.connect() as conn:
         inspector = sa_inspect(db.engine)
-        existing_cols = [c["name"] for c in inspector.get_columns("cgpa_results")]
-        if "is_continuation" not in existing_cols:
+        user_cols = [c["name"] for c in inspector.get_columns("users")]
+        if "is_verified" not in user_cols:
+            conn.execute(text(
+                "ALTER TABLE users ADD COLUMN is_verified BOOLEAN NOT NULL DEFAULT 0"
+            ))
+            # Existing accounts predate OTP verification and remain usable.
+            conn.execute(text("UPDATE users SET is_verified = 1"))
+            conn.commit()
+
+        result_cols = [c["name"] for c in inspector.get_columns("cgpa_results")]
+        if "is_continuation" not in result_cols:
             conn.execute(text(
                 "ALTER TABLE cgpa_results ADD COLUMN is_continuation BOOLEAN DEFAULT 0"
             ))
@@ -122,6 +154,7 @@ with app.app_context():
 
 EMAIL_PATTERN  = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MATRIC_PATTERN = re.compile(r"^[A-Z0-9/\-]{3,20}$")
+SCHOOL_EMAIL_DOMAIN = "@tech-u.edu.ng"
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  AUTH DECORATOR
@@ -210,6 +243,8 @@ def validate_registration(form) -> dict:
     elif User.query.filter_by(matric=matric).first(): errors["matric"] = "This matric number is already registered."
     if not email:               errors["email"]       = "Email address is required."
     elif not EMAIL_PATTERN.match(email): errors["email"] = "Enter a valid email address."
+    elif not email.lower().endswith(SCHOOL_EMAIL_DOMAIN):
+        errors["email"] = f"Registration is restricted to {SCHOOL_EMAIL_DOMAIN} email addresses."
     if not faculty:             errors["faculty"]     = "Please select your faculty."
     if not department:          errors["department"]  = "Department is required."
     elif len(department) < 2:   errors["department"]  = "Enter a valid department name."
@@ -228,6 +263,42 @@ def parse_positive_int(value, label: str) -> tuple:
         return n, None
     except (ValueError, TypeError):
         return None, f"{label} must be a whole number greater than 0."
+
+
+def issue_email_otp(user: User) -> str:
+    """Invalidate older codes, create a fresh code, and deliver it."""
+    EmailOTP.query.filter_by(user_id=user.id, used=False).update({"used": True})
+    otp_code = f"{secrets.randbelow(1_000_000):06d}"
+    otp = EmailOTP(
+        user_id=user.id,
+        otp_code=otp_code,
+        expires_at=datetime.utcnow() + timedelta(minutes=10),
+    )
+    db.session.add(otp)
+    db.session.commit()
+
+    if app.config["DEV_MODE"]:
+        app.logger.info("DEV_MODE OTP for %s: %s", user.email, otp_code)
+        flash(f"[DEV MODE] Your verification code is {otp_code}", "info")
+        return otp_code
+
+    if not app.config["MAIL_USERNAME"] or not app.config["MAIL_PASSWORD"]:
+        raise RuntimeError("SMTP credentials are not configured.")
+
+    message = EmailMessage()
+    message["Subject"] = "Your CGPA Calculator verification code"
+    message["From"] = app.config["MAIL_USERNAME"]
+    message["To"] = user.email
+    message.set_content(
+        f"Your CGPA Calculator verification code is {otp_code}. "
+        "It expires in 10 minutes."
+    )
+    with smtplib.SMTP(app.config["MAIL_SERVER"], app.config["MAIL_PORT"]) as smtp:
+        if app.config["MAIL_USE_TLS"]:
+            smtp.starttls()
+        smtp.login(app.config["MAIL_USERNAME"], app.config["MAIL_PASSWORD"])
+        smtp.send_message(message)
+    return otp_code
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  REPORTLAB PDF GENERATOR
@@ -374,6 +445,22 @@ def login():
         flash("Invalid matric number or password.", "danger")
         return render_template("login.html")
 
+    if not user.is_verified:
+        session["pending_verification_user_id"] = user.id
+        latest_otp = (EmailOTP.query
+                      .filter_by(user_id=user.id, used=False)
+                      .order_by(EmailOTP.created_at.desc())
+                      .first())
+        if not latest_otp or latest_otp.expires_at <= datetime.utcnow():
+            try:
+                issue_email_otp(user)
+            except Exception:
+                app.logger.exception("Could not send verification OTP to %s", user.email)
+                flash("We could not send your verification code. Please try again later.", "danger")
+                return render_template("login.html")
+        flash("Please verify your school email before signing in.", "warning")
+        return redirect(url_for("verify_otp"))
+
     session.permanent      = True
     session["logged_in"]   = True
     session["user_id"]     = user.id
@@ -419,8 +506,75 @@ def register():
     db.session.add(new_user)
     db.session.commit()
 
-    flash(f"Account created for {full_name}. You can now log in.", "success")
-    return redirect(url_for("login"))
+    session["pending_verification_user_id"] = new_user.id
+    try:
+        issue_email_otp(new_user)
+    except Exception:
+        app.logger.exception("Could not send verification OTP to %s", new_user.email)
+        flash("Account created, but we could not send the verification code. Please try again.", "danger")
+        return redirect(url_for("login"))
+
+    flash(f"Account created for {full_name}. Check your school email for the verification code.", "success")
+    return redirect(url_for("verify_otp"))
+
+
+@app.route("/verify-otp", methods=["GET", "POST"])
+def verify_otp():
+    user_id = session.get("pending_verification_user_id")
+    user = User.query.get(user_id) if user_id else None
+    if not user:
+        flash("Please register or log in before verifying your email.", "warning")
+        return redirect(url_for("login"))
+    if user.is_verified:
+        session.pop("pending_verification_user_id", None)
+        return redirect(url_for("dashboard"))
+
+    if request.method == "POST":
+        submitted_code = request.form.get("otp_code", "").strip()
+        latest_otp = (EmailOTP.query
+                      .filter_by(user_id=user.id, used=False)
+                      .order_by(EmailOTP.created_at.desc())
+                      .first())
+
+        if not latest_otp or submitted_code != latest_otp.otp_code:
+            flash("The verification code is invalid.", "danger")
+            return render_template("verify_otp.html", email=user.email)
+        if latest_otp.expires_at <= datetime.utcnow():
+            flash("The verification code has expired. Please request a new code.", "warning")
+            return render_template("verify_otp.html", email=user.email)
+
+        latest_otp.used = True
+        user.is_verified = True
+        db.session.commit()
+        session.pop("pending_verification_user_id", None)
+        session.permanent      = True
+        session["logged_in"]   = True
+        session["user_id"]     = user.id
+        session["user_matric"] = user.matric
+        session["user_name"]   = user.full_name
+        flash("Email verified successfully. Welcome to your dashboard!", "success")
+        return redirect(url_for("dashboard"))
+
+    return render_template("verify_otp.html", email=user.email)
+
+
+@app.route("/resend-otp", methods=["POST"])
+def resend_otp():
+    user_id = session.get("pending_verification_user_id")
+    user = User.query.get(user_id) if user_id else None
+    if not user or user.is_verified:
+        flash("Please register or log in before requesting a verification code.", "warning")
+        return redirect(url_for("login"))
+
+    try:
+        issue_email_otp(user)
+    except Exception:
+        app.logger.exception("Could not resend verification OTP to %s", user.email)
+        flash("We could not send a new verification code. Please try again later.", "danger")
+        return redirect(url_for("verify_otp"))
+
+    flash("A new verification code has been sent.", "success")
+    return redirect(url_for("verify_otp"))
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  PASSWORD RESET

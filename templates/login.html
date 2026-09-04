@@ -171,6 +171,14 @@
     <h1>Student Sign In</h1>
     <p class="subtitle">Access your CGPA dashboard securely</p>
 
+    {% with messages = get_flashed_messages(with_categories=true, category_filter=['auth', 'otp', 'reset']) %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'error' if category == 'danger' else 'success' if category == 'success' else 'info' }}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endwith %}
+
     <!-- Success message after registration -->
     {% if session.get('reg_success') %}
     <div class="alert alert-success">✓ {{ session.pop('reg_success') }}</div>
