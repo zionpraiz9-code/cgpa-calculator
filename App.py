@@ -1,13 +1,16 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import re
 import json
 import secrets
-import smtplib
 from io import BytesIO
 from datetime import datetime, timedelta
-from email.message import EmailMessage
 from flask import (Flask, render_template, request, session,
                    redirect, url_for, flash, send_file)
+from flask_mail import Mail, Message
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -28,18 +31,23 @@ from reportlab.lib.enums import TA_CENTER
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-this-in-production-please")
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
-app.config["DEV_MODE"] = os.environ.get("DEV_MODE", "true").lower() in ("1", "true", "yes")
+app.config["DEV_MODE"] = os.environ.get("DEV_MODE", "false").lower() in ("1", "true", "yes")
 app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
 app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", "587"))
 app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME", "")
 app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD", "")
+app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER", app.config["MAIL_USERNAME"])
 app.config["MAIL_USE_TLS"] = os.environ.get("MAIL_USE_TLS", "true").lower() in ("1", "true", "yes")
+app.config["MAX_CONTENT_LENGTH"] = 3 * 1024 * 1024
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROFILE_PICS_DIR = os.path.join(BASE_DIR, "static", "uploads", "profile_pics")
+os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
 app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(BASE_DIR, 'users_fixed.db')}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
+mail = Mail(app)
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  MODELS
@@ -57,6 +65,7 @@ class User(db.Model):
     programme  = db.Column(db.String(100), nullable=False)
     password   = db.Column(db.String(255), nullable=False)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
+    profile_picture = db.Column(db.String(255), nullable=True)
 
     results      = db.relationship("CGPAResult",    backref="user", lazy=True, cascade="all, delete-orphan")
     reset_tokens = db.relationship("PasswordReset", backref="user", lazy=True, cascade="all, delete-orphan")
@@ -148,6 +157,12 @@ with app.app_context():
             ))
             conn.commit()
 
+        if "profile_picture" not in user_cols:
+            conn.execute(text(
+                "ALTER TABLE users ADD COLUMN profile_picture VARCHAR(255)"
+            ))
+            conn.commit()
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  CONSTANTS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -174,7 +189,7 @@ def login_required(f):
     return decorated
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  CGPA HELPER FUNCTIONS
+#  GRADE CALCULATION HELPER FUNCTIONS
 # ─────────────────────────────────────────────────────────────────────────────
 
 GRADE_POINT_MAP = {
@@ -285,19 +300,20 @@ def issue_email_otp(user: User) -> str:
     if not app.config["MAIL_USERNAME"] or not app.config["MAIL_PASSWORD"]:
         raise RuntimeError("SMTP credentials are not configured.")
 
-    message = EmailMessage()
-    message["Subject"] = "Your CGPA Calculator verification code"
-    message["From"] = app.config["MAIL_USERNAME"]
-    message["To"] = user.email
-    message.set_content(
-        f"Your CGPA Calculator verification code is {otp_code}. "
-        "It expires in 10 minutes."
+    message = Message(
+        subject="Your Z GRADE CALC verification code",
+        sender=("Z GRADE CALC", app.config["MAIL_DEFAULT_SENDER"]),
+        recipients=[user.email],
+        body=(
+            f"Your Z GRADE CALC verification code is {otp_code}. "
+            "It expires in 10 minutes."
+        ),
     )
-    with smtplib.SMTP(app.config["MAIL_SERVER"], app.config["MAIL_PORT"]) as smtp:
-        if app.config["MAIL_USE_TLS"]:
-            smtp.starttls()
-        smtp.login(app.config["MAIL_USERNAME"], app.config["MAIL_PASSWORD"])
-        smtp.send_message(message)
+    try:
+        mail.send(message)
+    except Exception as exc:
+        print(f"OTP email sending failed: {type(exc).__name__}: {exc}", flush=True)
+        raise
     return otp_code
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -330,14 +346,14 @@ def generate_pdf_bytes(result: CGPAResult) -> bytes:
     doc     = SimpleDocTemplate(buffer, pagesize=A4,
                                 leftMargin=2*cm, rightMargin=2*cm,
                                 topMargin=2*cm,  bottomMargin=2*cm,
-                                title="CGPA Academic Result")
+                                title="Academic Performance Report")
     S       = _build_styles()
     story   = []
     W       = A4[0] - 4 * cm
     student   = result.student
     semesters = result.semesters
 
-    story.append(Paragraph("CGPA Academic Result", S["title"]))
+    story.append(Paragraph("Academic Performance Report", S["title"]))
     story.append(Paragraph("Official Performance Report", S["subtitle"]))
     story.append(HRFlowable(width=W, thickness=2, color=BRAND_BLUE, spaceAfter=14))
 
@@ -408,7 +424,7 @@ def generate_pdf_bytes(result: CGPAResult) -> bytes:
     story.append(course_table)
     story.append(Spacer(1,20))
     story.append(HRFlowable(width=W, thickness=.5, color=SLATE, spaceAfter=8))
-    story.append(Paragraph(f"Generated by CGPA Calculator &nbsp;·&nbsp; {result.date_display}", S["footer"]))
+    story.append(Paragraph(f"Generated by Z GRADE CALC &nbsp;·&nbsp; {result.date_display}", S["footer"]))
 
     doc.build(story)
     return buffer.getvalue()
@@ -922,12 +938,14 @@ def results():
 @login_required
 def dashboard():
     user_id = session.get("user_id")
+    user = User.query.get(user_id)
     all_results = (CGPAResult.query
                    .filter_by(user_id=user_id)
                    .order_by(CGPAResult.date_created.desc())
                    .all())
     latest = all_results[0] if all_results else None
-    return render_template("dashboard.html", results=all_results, latest=latest)
+    return render_template("dashboard.html", results=all_results, latest=latest,
+                           profile_picture=user.profile_picture if user else None)
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  PROFILE
@@ -953,6 +971,8 @@ def profile(result_id=None):
             flash("No results found. Please calculate your CGPA first.", "warning")
             return redirect(url_for("index"))
 
+    user = User.query.get(user_id)
+
     return render_template("profile.html", data={
         "student":           result.student,
         "semesters":         result.semesters,
@@ -962,7 +982,39 @@ def profile(result_id=None):
         "classification":    result.classification,
         "date":              result.date_display,
         "is_continuation":   result.is_continuation,
+        "profile_picture":   user.profile_picture if user else None,
     }, result_id=result.id)
+
+
+@app.route("/upload-profile-picture", methods=["POST"])
+@login_required
+def upload_profile_picture():
+    user = User.query.get(session.get("user_id"))
+    uploaded_file = request.files.get("profile_picture")
+    allowed_extensions = {"png", "jpg", "jpeg", "webp"}
+
+    if not user or not uploaded_file or not uploaded_file.filename:
+        flash("Please choose a profile picture to upload.", "danger")
+        return redirect(url_for("profile"))
+
+    original_name = uploaded_file.filename.lower()
+    extension = original_name.rsplit(".", 1)[-1] if "." in original_name else ""
+    if extension not in allowed_extensions:
+        flash("Profile pictures must be PNG, JPG, JPEG, or WEBP files.", "danger")
+        return redirect(url_for("profile"))
+
+    if user.profile_picture:
+        old_picture = os.path.join(PROFILE_PICS_DIR, os.path.basename(user.profile_picture))
+        if os.path.isfile(old_picture):
+            os.remove(old_picture)
+
+    filename = f"user_{user.id}_{secrets.token_hex(16)}.{extension}"
+    uploaded_file.save(os.path.join(PROFILE_PICS_DIR, filename))
+    user.profile_picture = filename
+    db.session.commit()
+
+    flash("Profile picture updated successfully.", "success")
+    return redirect(url_for("profile"))
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  PDF DOWNLOAD

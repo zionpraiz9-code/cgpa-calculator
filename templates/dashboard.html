@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dashboard — CGPA Calculator</title>
+  <title>Dashboard — Z GRADE CALC</title>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -63,6 +63,7 @@
     .user-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--blue-dark),var(--blue));
       display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:.8rem;
       flex-shrink:0; box-shadow:0 0 12px rgba(79,142,255,.4); }
+    .user-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
     .user-info p { color:var(--text); font-size:.8rem; font-weight:600; }
     .user-info span { color:var(--text-faint); font-family:'JetBrains Mono',monospace; font-size:.67rem; }
 
@@ -261,7 +262,7 @@
   <div class="sidebar-logo">
     <div class="logo-icon">◈</div>
     <div>
-      <div class="logo-text">CGPA<em>Calc</em></div>
+      <div class="logo-text">Z GRADE <em>CALC</em></div>
       <div class="logo-sub">Academic Portal</div>
     </div>
   </div>
@@ -288,7 +289,11 @@
   </nav>
   <div class="sidebar-footer">
     <div class="user-card">
-      <div class="user-avatar">{{ session.user_name[0]|upper if session.user_name else "U" }}</div>
+      {% if profile_picture %}
+        <div class="user-avatar"><img src="{{ url_for('static', filename='uploads/profile_pics/' ~ profile_picture) }}" alt="Profile picture"></div>
+      {% else %}
+        <div class="user-avatar">{{ session.user_name[0]|upper if session.user_name else "U" }}</div>
+      {% endif %}
       <div class="user-info">
         <p>{{ session.user_name or "Student" }}</p>
         <span>{{ session.user_matric or "" }}</span>
@@ -307,7 +312,7 @@
     </div>
   </div>
 
-  {% with messages = get_flashed_messages(with_categories=true, category_filter=['app']) %}
+  {% with messages = get_flashed_messages(with_categories=true, category_filter=['danger', 'warning', 'success', 'info']) %}
     {% for category, message in messages %}
       <div class="flash {{ category }}">{{ message }}</div>
     {% endfor %}

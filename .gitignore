@@ -4,3 +4,5 @@ users_fixed.db
 # Ignore any other SQLite database files
 *.db
 *.sqlite3
+
+.env

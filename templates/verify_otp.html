@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Verify Email — CGPA Portal</title>
+  <title>Verify Email — Z GRADE CALC</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
@@ -43,7 +43,7 @@
     <h1>Verify Your Email</h1>
     <p class="subtitle">Enter the 6-digit code sent to<br><strong>{{ email }}</strong>. It expires in 10 minutes.</p>
 
-    {% with messages = get_flashed_messages(with_categories=true, category_filter=['otp']) %}
+    {% with messages = get_flashed_messages(with_categories=true, category_filter=['danger', 'warning', 'success', 'info']) %}
       {% for category, message in messages %}
         <div class="alert alert-{{ category }}">{{ message }}</div>
       {% endfor %}
@@ -53,7 +53,7 @@
       <div class="field">
         <label for="otp_code">Verification Code</label>
         <input class="otp-input" type="text" id="otp_code" name="otp_code"
-               inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6"
+               inputmode="numeric" pattern="\d{6}" minlength="6" maxlength="6"
                autocomplete="one-time-code" placeholder="000000" required autofocus/>
       </div>
       <button type="submit" class="btn-primary">Verify Email</button>
