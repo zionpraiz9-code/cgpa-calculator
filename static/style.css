@@ -315,9 +315,71 @@ input::placeholder { color: var(--ink-3); }
   outline: none;
   transition: border-color .2s;
 }
-.tbl-input:focus { border-color: var(--gold); }
+.tbl-input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(201,168,76,.12), 0 0 14px rgba(201,168,76,.14);
+}
 .tbl-num { max-width: 80px; text-align: center; }
 .row-num { color: var(--ink-3); font-size: 0.8rem; text-align: center; }
+
+.course-row {
+  border-left: 2px solid var(--border);
+  transition: border-color .2s, background-color .2s;
+}
+.course-row:hover,
+.course-row:focus-within { border-left-color: var(--gold); }
+.course-row:focus-within td { background: rgba(201,168,76,.025); }
+.course-code-input,
+.grade-select,
+.input-mode-toggle { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+.course-input-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.input-mode-toggle {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  background: var(--bg);
+}
+.mode-button {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  font: inherit;
+  font-size: .72rem;
+  padding: 6px 11px;
+  transition: color .2s, background .2s, box-shadow .2s;
+}
+.mode-button:hover { color: var(--ink); }
+.mode-button.is-active {
+  background: linear-gradient(135deg, var(--gold), #e0af70);
+  box-shadow: 0 0 12px rgba(201,168,76,.25);
+  color: #0e0f11;
+  font-weight: 700;
+}
+.score-wrapper,
+.grade-wrapper { display: flex; align-items: center; gap: 6px; }
+.grade-select { width: 90px; }
+.input-hint {
+  color: var(--ink-3);
+  display: block;
+  font-size: .72rem;
+  margin-top: 5px;
+}
+.score-input:required:invalid,
+.grade-select:required:invalid {
+  animation: requiredPulse 2.4s ease-in-out infinite;
+}
+@keyframes requiredPulse {
+  0%, 100% { border-color: var(--border); box-shadow: 0 0 0 rgba(201,168,76,0); }
+  50% { border-color: var(--gold-dim); box-shadow: 0 0 0 3px rgba(201,168,76,.08); }
+}
 
 /* Row enter animation */
 .row-enter { opacity: 0; transform: translateY(8px); transition: opacity .2s, transform .2s; }

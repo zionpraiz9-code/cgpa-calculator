@@ -10,6 +10,7 @@
     href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap"
     rel="stylesheet"
   />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 </head>
 <body>
@@ -280,7 +281,7 @@
                     <input type="text"
                            name="sem_{{ s }}_course_{{ c }}_code"
                            placeholder="e.g. ENG{{ 300 + c }}"
-                           class="tbl-input" />
+                           class="tbl-input course-code-input" />
                   </td>
                   <td>
                     <input type="number"
@@ -289,26 +290,27 @@
                            class="tbl-input tbl-num" required />
                   </td>
                   <td>
-                    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                      <select name="sem_{{ s }}_course_{{ c }}_input_mode"
-                              class="tbl-input input-mode-select"
-                              style="width:130px"
-                              onchange="toggleCourseInputMode(this)">
-                        <option value="score" selected>Enter Score</option>
-                        <option value="grade">Enter Grade</option>
-                      </select>
+                    <div class="course-input-controls">
+                      <input type="hidden" name="sem_{{ s }}_course_{{ c }}_input_mode"
+                             value="score" class="input-mode-value" />
+                      <div class="input-mode-toggle" role="group" aria-label="Score or grade input">
+                        <button type="button" class="mode-button is-active" data-mode="score"
+                                aria-pressed="true" onclick="toggleCourseInputMode(this)">Score</button>
+                        <button type="button" class="mode-button" data-mode="grade"
+                                aria-pressed="false" onclick="toggleCourseInputMode(this)">Grade</button>
+                      </div>
 
-                      <div class="score-wrapper" style="display:flex;gap:6px;align-items:center;">
+                      <div class="score-wrapper">
                         <input type="number"
                                name="sem_{{ s }}_course_{{ c }}_score"
                                min="0" max="100" placeholder="75"
-                               class="tbl-input tbl-num score-input" />
+                               class="tbl-input tbl-num score-input" required />
                       </div>
 
-                      <div class="grade-wrapper" style="display:none;align-items:center;">
+                      <div class="grade-wrapper" hidden>
                         <select name="sem_{{ s }}_course_{{ c }}_grade"
                                 class="tbl-input grade-select"
-                                style="width:90px">
+                                aria-label="Grade">
                           <option value="">Grade</option>
                           <option value="A">A</option>
                           <option value="B">B</option>
@@ -319,7 +321,7 @@
                         </select>
                       </div>
                     </div>
-                    <small style="color:var(--text-faint,#888);display:block;margin-top:4px;">Choose an entry mode and provide either a score or a grade.</small>
+                    <small class="input-hint">Choose an entry mode and provide either a score or a grade.</small>
                   </td>
                   <td>
                     <button type="button" class="btn-icon btn-del"
@@ -473,22 +475,35 @@
      * Appends a new course row to the given semester's table
      * and increments the hidden course-count field.
      */
-    function toggleCourseInputMode(selectEl) {
-      const row = selectEl.closest('tr');
+    function toggleCourseInputMode(buttonEl) {
+      const row = buttonEl.closest('tr');
       if (!row) return;
 
+      const mode = buttonEl.dataset.mode;
+      const modeInput = row.querySelector('.input-mode-value');
       const scoreWrapper = row.querySelector('.score-wrapper');
       const gradeWrapper = row.querySelector('.grade-wrapper');
       const scoreInput = row.querySelector('.score-input');
       const gradeSelect = row.querySelector('.grade-select');
+      const modeButtons = row.querySelectorAll('.mode-button');
 
-      if (selectEl.value === 'grade') {
-        if (scoreWrapper) scoreWrapper.style.display = 'none';
-        if (gradeWrapper) gradeWrapper.style.display = 'flex';
+      if (modeInput) modeInput.value = mode;
+      modeButtons.forEach((button) => {
+        button.classList.toggle('is-active', button.dataset.mode === mode);
+        button.setAttribute('aria-pressed', button.dataset.mode === mode);
+      });
+
+      if (mode === 'grade') {
+        if (scoreWrapper) scoreWrapper.hidden = true;
+        if (gradeWrapper) gradeWrapper.hidden = false;
+        if (scoreInput) scoreInput.required = false;
+        if (gradeSelect) gradeSelect.required = true;
         if (scoreInput) scoreInput.value = '';
       } else {
-        if (scoreWrapper) scoreWrapper.style.display = 'flex';
-        if (gradeWrapper) gradeWrapper.style.display = 'none';
+        if (scoreWrapper) scoreWrapper.hidden = false;
+        if (gradeWrapper) gradeWrapper.hidden = true;
+        if (scoreInput) scoreInput.required = true;
+        if (gradeSelect) gradeSelect.required = false;
         if (gradeSelect) gradeSelect.value = '';
       }
     }
@@ -508,7 +523,7 @@
           <input type="text"
                  name="sem_${semNum}_course_${newIdx}_code"
                  placeholder="e.g. ENG${300 + newIdx}"
-                 class="tbl-input" />
+                 class="tbl-input course-code-input" />
         </td>
         <td>
           <input type="number"
@@ -517,26 +532,27 @@
                  class="tbl-input tbl-num" required />
         </td>
         <td>
-          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-            <select name="sem_${semNum}_course_${newIdx}_input_mode"
-                    class="tbl-input input-mode-select"
-                    style="width:130px"
-                    onchange="toggleCourseInputMode(this)">
-              <option value="score" selected>Enter Score</option>
-              <option value="grade">Enter Grade</option>
-            </select>
+          <div class="course-input-controls">
+            <input type="hidden" name="sem_${semNum}_course_${newIdx}_input_mode"
+                   value="score" class="input-mode-value" />
+            <div class="input-mode-toggle" role="group" aria-label="Score or grade input">
+              <button type="button" class="mode-button is-active" data-mode="score"
+                      aria-pressed="true" onclick="toggleCourseInputMode(this)">Score</button>
+              <button type="button" class="mode-button" data-mode="grade"
+                      aria-pressed="false" onclick="toggleCourseInputMode(this)">Grade</button>
+            </div>
 
             <div class="score-wrapper" style="display:flex;gap:6px;align-items:center;">
               <input type="number"
                      name="sem_${semNum}_course_${newIdx}_score"
                      min="0" max="100" placeholder="70"
-                     class="tbl-input tbl-num score-input" />
+                     class="tbl-input tbl-num score-input" required />
             </div>
 
-            <div class="grade-wrapper" style="display:none;align-items:center;">
+            <div class="grade-wrapper" hidden>
               <select name="sem_${semNum}_course_${newIdx}_grade"
                       class="tbl-input grade-select"
-                      style="width:90px">
+                      aria-label="Grade">
                 <option value="">Grade</option>
                 <option value="A">A</option>
                 <option value="B">B</option>
@@ -576,11 +592,11 @@
         const unitInput = row.querySelector("input[name$='_unit']");
         const scoreInput = row.querySelector("input[name$='_score']");
         const gradeSelect = row.querySelector("select[name$='_grade']");
-        const modeSelect = row.querySelector("select[name$='_input_mode']");
+        const modeInput = row.querySelector("input[name$='_input_mode']");
 
         if (codeInput) codeInput.name  = `sem_${semNum}_course_${idx}_code`;
         if (unitInput) unitInput.name  = `sem_${semNum}_course_${idx}_unit`;
-        if (modeSelect) modeSelect.name = `sem_${semNum}_course_${idx}_input_mode`;
+        if (modeInput) modeInput.name = `sem_${semNum}_course_${idx}_input_mode`;
         if (scoreInput) scoreInput.name = `sem_${semNum}_course_${idx}_score`;
         if (gradeSelect) gradeSelect.name = `sem_${semNum}_course_${idx}_grade`;
 

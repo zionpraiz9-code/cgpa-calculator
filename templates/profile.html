@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Profile — Z GRADE CALC</title>
+  <title>Profile — CGPA Calculator</title>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -121,7 +121,6 @@
       display: flex; align-items: center; justify-content: center;
       color: var(--white); font-weight: 700; font-size: 0.875rem; flex-shrink: 0;
     }
-    .user-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
     .user-info p { color: var(--white); font-size: 0.8rem; font-weight: 600; }
     .user-info span { color: var(--gray400); font-size: 0.7rem; }
 
@@ -209,21 +208,6 @@
       border: 2px solid var(--glass-border);
       box-shadow: 0 8px 24px rgba(26,86,219,0.4);
     }
-    .profile-avatar img {
-      width: 100%; height: 100%; object-fit: cover; border-radius: 18px;
-    }
-    .avatar-upload { position: relative; flex-shrink: 0; z-index: 2; }
-    .avatar-upload input { display: none; }
-    .avatar-edit {
-      position: absolute; right: -6px; bottom: -6px;
-      width: 28px; height: 28px; border: 2px solid var(--navy);
-      border-radius: 50%; background: var(--blue); color: var(--white);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,0.35);
-      transition: background 0.2s, transform 0.2s;
-    }
-    .avatar-edit:hover { background: var(--accent); transform: translateY(-1px); }
-    .avatar-edit svg { width: 14px; height: 14px; }
 
     .profile-meta { flex: 1; position: relative; z-index: 1; }
     .profile-meta h2 {
@@ -445,7 +429,7 @@
 <!-- SIDEBAR -->
 <aside class="sidebar">
   <div class="sidebar-logo">
-    <h2>Z GRADE <span>CALC</span></h2>
+    <h2>CGPA <span>Calc</span></h2>
     <p>Academic Performance</p>
   </div>
 
@@ -484,11 +468,7 @@
 
   <div class="sidebar-footer">
     <div class="user-card">
-      {% if data.profile_picture %}
-        <div class="user-avatar"><img src="{{ url_for('static', filename='uploads/profile_pics/' ~ data.profile_picture) }}" alt="Profile picture"></div>
-      {% else %}
-        <div class="user-avatar">{{ session.user_name[0] | upper if session.user_name else "U" }}</div>
-      {% endif %}
+      <div class="user-avatar">{{ session.user_name[0] | upper if session.user_name else "U" }}</div>
       <div class="user-info">
         <p>{{ session.user_name or "Student" }}</p>
         <span>{{ session.user_matric or "" }}</span>
@@ -501,7 +481,7 @@
 <main class="main">
 
   <!-- FLASH MESSAGES -->
-  {% with messages = get_flashed_messages(with_categories=true, category_filter=['danger', 'warning', 'success', 'info']) %}
+  {% with messages = get_flashed_messages(with_categories=true, category_filter=['app']) %}
     {% if messages %}
       <div class="flashes">
         {% for category, message in messages %}
@@ -531,21 +511,7 @@
 
   <!-- PROFILE HEADER -->
   <div class="profile-header">
-    <form class="avatar-upload" action="{{ url_for('upload_profile_picture') }}" method="post" enctype="multipart/form-data">
-      <div class="profile-avatar">
-        {% if data.profile_picture %}
-          <img src="{{ url_for('static', filename='uploads/profile_pics/' ~ data.profile_picture) }}" alt="Profile picture">
-        {% else %}
-          {{ data.student.name[0] | upper }}
-        {% endif %}
-        <label class="avatar-edit" for="profile-picture-input" title="Change profile picture">
-          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L8 18l-4 1 1-4z"/>
-          </svg>
-        </label>
-      </div>
-      <input id="profile-picture-input" name="profile_picture" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" onchange="this.form.submit()">
-    </form>
+    <div class="profile-avatar">{{ data.student.name[0] | upper }}</div>
     <div class="profile-meta">
       <h2>{{ data.student.name }}</h2>
       <p>{{ data.student.faculty }}</p>

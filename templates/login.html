@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sign In — Z GRADE CALC</title>
+  <title>Sign In — CGPA Portal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
@@ -171,7 +171,7 @@
     <h1>Student Sign In</h1>
     <p class="subtitle">Access your CGPA dashboard securely</p>
 
-    {% with messages = get_flashed_messages(with_categories=true, category_filter=['danger', 'warning', 'success', 'info']) %}
+    {% with messages = get_flashed_messages(with_categories=true, category_filter=['auth', 'otp', 'reset']) %}
       {% for category, message in messages %}
         <div class="alert alert-{{ 'error' if category == 'danger' else 'success' if category == 'success' else 'info' }}">
           {{ message }}
