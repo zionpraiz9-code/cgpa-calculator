@@ -1,3 +1,4 @@
+{% from "_macros.html" import avatar %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Profile — CGPA Calculator</title>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link href="{{ url_for('static', filename='avatar.css') }}" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -208,6 +210,18 @@
       border: 2px solid var(--glass-border);
       box-shadow: 0 8px 24px rgba(26,86,219,0.4);
     }
+
+    .avatar-link { display: inline-flex; text-decoration: none; }
+    .avatar {
+      display: inline-flex; align-items: center; justify-content: center;
+      overflow: hidden; border-radius: 20px; background: linear-gradient(135deg, var(--blue) 0%, var(--accent) 100%);
+      border: 2px solid var(--glass-border); box-shadow: 0 8px 24px rgba(26,86,219,0.4);
+      color: var(--white); font-weight: 700; text-transform: uppercase; flex-shrink: 0;
+    }
+    .avatar img { width: 100%; height: 100%; display: block; object-fit: cover; }
+    .avatar span { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+    .avatar-link .avatar { width: 84px; height: 84px; }
+    .sidebar-footer .avatar-link .avatar { width: 36px; height: 36px; border-radius: 50%; }
 
     .profile-meta { flex: 1; position: relative; z-index: 1; }
     .profile-meta h2 {
@@ -468,7 +482,9 @@
 
   <div class="sidebar-footer">
     <div class="user-card">
-      <div class="user-avatar">{{ session.user_name[0] | upper if session.user_name else "U" }}</div>
+      <a href="{{ url_for('edit_profile') }}" class="avatar-link">
+        {{ avatar(current_avatar_url, current_user_obj.full_name if current_user_obj else (session.user_name or 'User'), 'sm') }}
+      </a>
       <div class="user-info">
         <p>{{ session.user_name or "Student" }}</p>
         <span>{{ session.user_matric or "" }}</span>
@@ -511,7 +527,9 @@
 
   <!-- PROFILE HEADER -->
   <div class="profile-header">
-    <div class="profile-avatar">{{ data.student.name[0] | upper }}</div>
+    <a href="{{ url_for('edit_profile') }}" class="avatar-link">
+      {{ avatar(current_avatar_url, current_user_obj.full_name if current_user_obj else data.student.name, 'lg') }}
+    </a>
     <div class="profile-meta">
       <h2>{{ data.student.name }}</h2>
       <p>{{ data.student.faculty }}</p>

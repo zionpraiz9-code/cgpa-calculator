@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edit Profile</title>
+  <style>
+    :root {
+      --navy: #09172d;
+      --navy-2: #0d223e;
+      --blue: #1a56db;
+      --blue-2: #2f7df6;
+      --sky: #7dd3fc;
+      --sky-soft: rgba(125, 211, 252, 0.16);
+      --white: #f8fbff;
+      --muted: #b9c9df;
+      --line: rgba(125, 211, 252, 0.18);
+      --success: #4ade80;
+      --danger: #f87171;
+      --warning: #fbbf24;
+      --shadow: 0 20px 50px rgba(11, 23, 44, 0.42);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(135deg, #071425 0%, #0d1b2b 28%, #112b48 100%);
+      color: var(--white);
+    }
+
+    .page {
+      max-width: 1000px;
+      margin: 40px auto;
+      padding: 32px 20px 60px;
+    }
+
+    .card {
+      background: rgba(8, 19, 35, 0.9);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 28px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .title-group h1 {
+      margin: 0;
+      font-size: clamp(1.8rem, 3vw, 2.5rem);
+      letter-spacing: -0.04em;
+    }
+
+    .title-group p {
+      margin: 8px 0 0;
+      color: var(--muted);
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 18px;
+      text-decoration: none;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--blue) 0%, var(--blue-2) 100%);
+      color: var(--white);
+      box-shadow: 0 12px 26px rgba(26, 86, 219, 0.32);
+    }
+
+    .btn-secondary {
+      background: rgba(125, 211, 252, 0.12);
+      color: var(--white);
+      border: 1px solid var(--line);
+    }
+
+    .btn-danger {
+      background: rgba(248, 113, 113, 0.12);
+      color: #fecaca;
+      border: 1px solid rgba(248, 113, 113, 0.28);
+    }
+
+    .flash-list {
+      margin: 0 0 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .flash {
+      border-radius: 12px;
+      padding: 12px 14px;
+      border: 1px solid transparent;
+      font-size: 0.95rem;
+    }
+
+    .flash.success {
+      background: rgba(74, 222, 128, 0.1);
+      border-color: rgba(74, 222, 128, 0.26);
+      color: #bbf7d0;
+    }
+
+    .flash.danger {
+      background: rgba(248, 113, 113, 0.08);
+      border-color: rgba(248, 113, 113, 0.24);
+      color: #fecaca;
+    }
+
+    .flash.warning {
+      background: rgba(251, 191, 36, 0.08);
+      border-color: rgba(251, 191, 36, 0.24);
+      color: #fde68a;
+    }
+
+    .flash.info {
+      background: rgba(125, 211, 252, 0.08);
+      border-color: rgba(125, 211, 252, 0.24);
+      color: #dbeafe;
+    }
+
+    .profile-layout {
+      display: grid;
+      grid-template-columns: minmax(250px, 340px) minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .sidebar-panel {
+      background: rgba(14, 28, 49, 0.85);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .avatar-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      text-align: center;
+    }
+
+    .avatar-preview {
+      width: 130px;
+      height: 130px;
+      border-radius: 28px;
+      overflow: hidden;
+      background: linear-gradient(135deg, var(--blue) 0%, var(--sky) 100%);
+      box-shadow: 0 0 0 4px rgba(125, 211, 252, 0.16), 0 18px 40px rgba(26, 86, 219, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--white);
+      font-size: 3rem;
+      font-weight: 700;
+    }
+
+    .avatar-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .upload-note {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    .form-panel {
+      background: rgba(14, 28, 49, 0.85);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 22px;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px 20px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field label {
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .field input,
+    .field input[readonly] {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(11, 23, 44, 0.9);
+      color: var(--white);
+      outline: none;
+      font-size: 0.96rem;
+    }
+
+    .field input:focus {
+      border-color: rgba(125, 211, 252, 0.6);
+      box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.12);
+    }
+
+    .field input[readonly] {
+      cursor: not-allowed;
+      opacity: 0.8;
+      background: rgba(12, 21, 31, 0.9);
+    }
+
+    .input-hint {
+      color: var(--muted);
+      font-size: 0.75rem;
+      margin-top: -4px;
+    }
+
+    .password-box {
+      margin-top: 8px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .section-title {
+      font-size: 0.82rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+      margin: 0 0 4px;
+    }
+
+    .file-wrap {
+      position: relative;
+    }
+
+    .file-wrap input[type="file"] {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(11, 23, 44, 0.9);
+      color: var(--white);
+    }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 760px) {
+      .profile-layout,
+      .field-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .card {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="card">
+      <div class="topbar">
+        <div class="title-group">
+          <h1>Edit Profile</h1>
+          <p>Update your personal information and profile picture.</p>
+        </div>
+        <div class="actions">
+          <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+        </div>
+      </div>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-list">
+            {% for category, message in messages %}
+              <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <div class="profile-layout">
+        <div class="sidebar-panel">
+          <div class="avatar-card">
+            <div class="avatar-preview" id="avatarPreview">
+              {% if current_avatar_url %}
+                <img src="{{ current_avatar_url }}" alt="{{ user.full_name }}" />
+              {% else %}
+                {{ (user.full_name or 'U')[:1] | upper }}
+              {% endif %}
+            </div>
+
+            <div>
+              <div style="font-weight:700; font-size:1.1rem; margin-bottom:4px;">{{ user.full_name }}</div>
+              <div style="color: var(--muted); font-size: 0.82rem;">{{ user.programme }}</div>
+            </div>
+
+            <p class="upload-note">PNG, JPG, JPEG, or WEBP only. Max file size: 3 MB.</p>
+
+            <form action="{{ url_for('remove_profile_picture') }}" method="post" style="width: 100%;">
+              <button type="submit" class="btn btn-danger" style="width: 100%;">Remove Picture</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="form-panel">
+          <form action="{{ url_for('edit_profile') }}" method="post" enctype="multipart/form-data" id="editProfileForm">
+            <div class="field-grid">
+              <div class="field">
+                <label for="full_name">Full Name</label>
+                <input id="full_name" name="full_name" type="text" value="{{ form_data.full_name or user.full_name }}" maxlength="100" required />
+              </div>
+
+              <div class="field">
+                <label for="faculty">Faculty</label>
+                <input id="faculty" name="faculty" type="text" value="{{ form_data.faculty or user.faculty }}" required />
+              </div>
+
+              <div class="field">
+                <label for="department">Department</label>
+                <input id="department" name="department" type="text" value="{{ form_data.department or user.department }}" required />
+              </div>
+
+              <div class="field">
+                <label for="programme">Programme</label>
+                <input id="programme" name="programme" type="text" value="{{ form_data.programme or user.programme }}" required />
+              </div>
+
+              <div class="field">
+                <label for="matric">Matric Number</label>
+                <input id="matric" name="matric" type="text" value="{{ user.matric }}" readonly />
+              </div>
+
+              <div class="field">
+                <label for="email">Email</label>
+                <input id="email" name="email" type="text" value="{{ user.email }}" readonly />
+              </div>
+
+              <div class="field" style="grid-column: 1 / -1;">
+                <label for="profile_picture">Profile Picture</label>
+                <div class="file-wrap">
+                  <input id="profile_picture" name="profile_picture" type="file" accept="image/png,image/jpeg,image/webp" />
+                </div>
+                <div class="input-hint">Leave blank to keep your current picture.</div>
+              </div>
+            </div>
+
+            <div class="password-box">
+              <p class="section-title">Change Password</p>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="current_password">Current Password</label>
+                  <input id="current_password" name="current_password" type="password" placeholder="Enter current password" />
+                </div>
+                <div class="field">
+                  <label for="new_password">New Password</label>
+                  <input id="new_password" name="new_password" type="password" placeholder="Minimum 8 characters" />
+                </div>
+                <div class="field" style="grid-column: 1 / -1;">
+                  <label for="confirm_password">Confirm New Password</label>
+                  <input id="confirm_password" name="confirm_password" type="password" placeholder="Re-enter new password" />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancel</a>
+              <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('profile_picture');
+    const avatarPreview = document.getElementById('avatarPreview');
+    const form = document.getElementById('editProfileForm');
+    const MAX_SIZE = 3 * 1024 * 1024;
+
+    if (fileInput) {
+      fileInput.addEventListener('change', function () {
+        const file = this.files && this.files[0];
+        if (!file) return;
+
+        if (file.size > MAX_SIZE) {
+          alert('image too large (max 3 MB)');
+          this.value = '';
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function (event) {
+          avatarPreview.innerHTML = '<img src="' + event.target.result + '" alt="Profile preview" />';
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    form.addEventListener('submit', function (event) {
+      const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+      if (file && file.size > MAX_SIZE) {
+        event.preventDefault();
+        alert('image too large (max 3 MB)');
+      }
+    });
+  </script>
+</body>
+</html>

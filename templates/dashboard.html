@@ -1,3 +1,4 @@
+{% from "_macros.html" import avatar %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Dashboard — CGPA Calculator</title>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link href="{{ url_for('static', filename='avatar.css') }}" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -60,6 +62,12 @@
     .sidebar-footer { padding:16px 14px; border-top:1px solid var(--border); }
     .user-card { display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:var(--radius-sm);
       background:rgba(79,142,255,.06); border:1px solid var(--border); }
+    .avatar { display:inline-flex; align-items:center; justify-content:center; overflow:hidden; border-radius:50%;
+      background:linear-gradient(135deg,var(--blue-dark),var(--blue)); color:#fff; box-shadow:0 0 12px rgba(79,142,255,.35);
+      border:1px solid rgba(79,142,255,.25); flex-shrink:0; }
+    .avatar img { width:100%; height:100%; display:block; object-fit:cover; }
+    .avatar span { display:flex; width:100%; height:100%; align-items:center; justify-content:center; font-weight:700; }
+    .user-card .avatar { width:34px; height:34px; }
     .user-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--blue-dark),var(--blue));
       display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:.8rem;
       flex-shrink:0; box-shadow:0 0 12px rgba(79,142,255,.4); }
@@ -288,7 +296,9 @@
   </nav>
   <div class="sidebar-footer">
     <div class="user-card">
-      <div class="user-avatar">{{ session.user_name[0]|upper if session.user_name else "U" }}</div>
+      <a href="{{ url_for('edit_profile') }}" class="avatar-link">
+        {{ avatar(current_avatar_url, current_user_obj.full_name if current_user_obj else (session.user_name or 'User'), 'sm') }}
+      </a>
       <div class="user-info">
         <p>{{ session.user_name or "Student" }}</p>
         <span>{{ session.user_matric or "" }}</span>

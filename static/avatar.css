@@ -1,0 +1,22 @@
+.zpfp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+  background: linear-gradient(135deg, #2563eb, #38bdf8);
+  color: #fff;
+  font-weight: 700;
+  line-height: 1;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.3);
+}
+.zpfp img {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  object-fit: cover;
+}

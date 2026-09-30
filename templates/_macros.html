@@ -1,0 +1,12 @@
+{% macro avatar(url, name, size='md') -%}
+  {% set size_map = {'sm': '36px', 'md': '64px', 'lg': '96px', 'xl': '130px'} %}
+  {% set fallback = (name or 'U')|trim|upper|first if (name or 'U') else 'U' %}
+  {% set box_size = size_map.get(size, '64px') %}
+  <div class="avatar zpfp avatar-{{ size }}" style="width: {{ box_size }}; height: {{ box_size }};">
+    {% if url %}
+      <img src="{{ url }}" alt="{{ name or 'User avatar' }}" />
+    {% else %}
+      <span>{{ fallback }}</span>
+    {% endif %}
+  </div>
+{%- endmacro %}

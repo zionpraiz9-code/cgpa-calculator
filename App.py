@@ -189,6 +189,137 @@ def login_required(f):
     return decorated
 
 # ─────────────────────────────────────────────────────────────────────────────
+#  PROFILE PICTURE & AVATAR HELPERS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def detect_image_type(file_bytes_or_stream):
+    if hasattr(file_bytes_or_stream, "read"):
+        file_obj = file_bytes_or_stream
+        try:
+            start = file_obj.tell()
+        except (AttributeError, OSError):
+            start = None
+        data = file_obj.read(12)
+        if start is not None:
+            try:
+                file_obj.seek(start)
+            except (AttributeError, OSError):
+                pass
+    else:
+        data = file_bytes_or_stream[:12]
+
+    if len(data) >= 8 and data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "png"
+    if len(data) >= 3 and data[:3] == b"\xff\xd8\xff":
+        return "jpg"
+    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "webp"
+    return None
+
+
+def validate_profile_picture(uploaded_file):
+    if not uploaded_file or not uploaded_file.filename:
+        raise ValueError("Please choose a profile picture to upload.")
+
+    extension = os.path.splitext(uploaded_file.filename)[1].lower().lstrip(".")
+    allowed_extensions = {"png", "jpg", "jpeg", "webp"}
+    if extension not in allowed_extensions:
+        raise ValueError("Profile pictures must be PNG, JPG, JPEG, or WEBP files.")
+
+    try:
+        uploaded_file.seek(0, os.SEEK_END)
+        size = uploaded_file.tell()
+        uploaded_file.seek(0)
+    except Exception:
+        size = 0
+
+    if size > app.config["MAX_CONTENT_LENGTH"]:
+        raise ValueError("image too large (max 3 MB)")
+
+    file_header = uploaded_file.read(12)
+    uploaded_file.seek(0)
+    detected_type = detect_image_type(file_header)
+    if detected_type is None:
+        raise ValueError("Uploaded file is not a valid PNG, JPG/JPEG, or WEBP image.")
+
+    if detected_type == "jpg" and extension not in {"jpg", "jpeg"}:
+        raise ValueError("File extension does not match the actual image type.")
+    if detected_type == "png" and extension != "png":
+        raise ValueError("File extension does not match the actual image type.")
+    if detected_type == "webp" and extension != "webp":
+        raise ValueError("File extension does not match the actual image type.")
+
+    return detected_type
+
+
+def delete_profile_picture_file(filename):
+    if not filename:
+        return
+
+    safe_name = os.path.basename(filename)
+    if not safe_name:
+        return
+
+    target_path = os.path.join(PROFILE_PICS_DIR, safe_name)
+    try:
+        if os.path.isfile(target_path):
+            os.remove(target_path)
+    except OSError:
+        pass
+
+
+def save_profile_picture(user, uploaded_file):
+    detected_type = validate_profile_picture(uploaded_file)
+    filename = f"user_{user.id}_{secrets.token_hex(16)}.{detected_type}"
+
+    if user.profile_picture:
+        delete_profile_picture_file(user.profile_picture)
+
+    uploaded_file.seek(0)
+    uploaded_file.save(os.path.join(PROFILE_PICS_DIR, filename))
+    user.profile_picture = filename
+    return filename
+
+
+def get_profile_picture_url(user=None):
+    if user is None:
+        user_id = session.get("user_id")
+        if not user_id:
+            return None
+        user = db.session.get(User, user_id)
+
+    if not user or not user.profile_picture:
+        return None
+
+    stored_name = os.path.basename(user.profile_picture)
+    full_path = os.path.join(PROFILE_PICS_DIR, stored_name)
+    if not os.path.isfile(full_path):
+        return None
+
+    return url_for("static", filename=f"uploads/profile_pics/{stored_name}")
+
+
+@app.context_processor
+def inject_current_user_context():
+    user = None
+    user_id = session.get("user_id")
+    if user_id:
+        user = db.session.get(User, user_id)
+    return {
+        "current_user_obj": user,
+        "current_avatar_url": get_profile_picture_url(user),
+    }
+
+
+@app.errorhandler(413)
+def handle_413(error):
+    if session.get("logged_in"):
+        flash("image too large (max 3 MB)", "danger")
+        return redirect(url_for("edit_profile"))
+    flash("image too large (max 3 MB)", "danger")
+    return redirect(url_for("login"))
+
+# ─────────────────────────────────────────────────────────────────────────────
 #  GRADE CALCULATION HELPER FUNCTIONS
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -624,7 +755,8 @@ def forgot_password():
         db.session.commit()
 
         reset_link = url_for("reset_password", token=token, _external=True)
-        flash(f"[DEV MODE] Reset link: {reset_link}", "info")
+        if app.config.get("DEV_MODE"):
+            flash(f"[DEV MODE] Reset link: {reset_link}", "info")
 
     flash("If that email exists, a reset link has been sent.", "success")
     return redirect(url_for("login"))
@@ -989,32 +1121,129 @@ def profile(result_id=None):
 @app.route("/upload-profile-picture", methods=["POST"])
 @login_required
 def upload_profile_picture():
-    user = User.query.get(session.get("user_id"))
+    user = db.session.get(User, session.get("user_id"))
     uploaded_file = request.files.get("profile_picture")
-    allowed_extensions = {"png", "jpg", "jpeg", "webp"}
 
-    if not user or not uploaded_file or not uploaded_file.filename:
+    if not user:
+        flash("User not found.", "danger")
+        return redirect(url_for("login"))
+
+    if not uploaded_file or not uploaded_file.filename:
         flash("Please choose a profile picture to upload.", "danger")
-        return redirect(url_for("profile"))
+        return redirect(url_for("edit_profile"))
 
-    original_name = uploaded_file.filename.lower()
-    extension = original_name.rsplit(".", 1)[-1] if "." in original_name else ""
-    if extension not in allowed_extensions:
-        flash("Profile pictures must be PNG, JPG, JPEG, or WEBP files.", "danger")
-        return redirect(url_for("profile"))
-
-    if user.profile_picture:
-        old_picture = os.path.join(PROFILE_PICS_DIR, os.path.basename(user.profile_picture))
-        if os.path.isfile(old_picture):
-            os.remove(old_picture)
-
-    filename = f"user_{user.id}_{secrets.token_hex(16)}.{extension}"
-    uploaded_file.save(os.path.join(PROFILE_PICS_DIR, filename))
-    user.profile_picture = filename
-    db.session.commit()
+    try:
+        save_profile_picture(user, uploaded_file)
+        db.session.commit()
+    except ValueError as exc:
+        flash(str(exc), "danger")
+        return redirect(url_for("edit_profile"))
 
     flash("Profile picture updated successfully.", "success")
-    return redirect(url_for("profile"))
+    return redirect(url_for("edit_profile"))
+
+
+@app.route("/remove-profile-picture", methods=["POST"])
+@login_required
+def remove_profile_picture():
+    user = db.session.get(User, session.get("user_id"))
+    if not user:
+        flash("User not found.", "danger")
+        return redirect(url_for("login"))
+
+    if user.profile_picture:
+        delete_profile_picture_file(user.profile_picture)
+        user.profile_picture = None
+        db.session.commit()
+        flash("Profile picture removed successfully.", "success")
+    else:
+        flash("No profile picture is currently set.", "info")
+
+    return redirect(url_for("edit_profile"))
+
+
+@app.route("/edit-profile", methods=["GET", "POST"])
+@login_required
+def edit_profile():
+    user = db.session.get(User, session.get("user_id"))
+    if not user:
+        flash("Your session is invalid. Please log in again.", "danger")
+        return redirect(url_for("login"))
+
+    form_data = {
+        "full_name": user.full_name,
+        "faculty": user.faculty,
+        "department": user.department,
+        "programme": user.programme,
+        "matric": user.matric,
+        "email": user.email,
+    }
+
+    if request.method == "POST":
+        form_data = {
+            "full_name": request.form.get("full_name", user.full_name).strip(),
+            "faculty": request.form.get("faculty", user.faculty).strip(),
+            "department": request.form.get("department", user.department).strip(),
+            "programme": request.form.get("programme", user.programme).strip(),
+            "matric": user.matric,
+            "email": user.email,
+        }
+
+        errors = []
+        if len(form_data["full_name"]) < 3 or len(form_data["full_name"]) > 100:
+            errors.append("Full name must be between 3 and 100 characters.")
+        if not form_data["faculty"]:
+            errors.append("Faculty is required.")
+        if len(form_data["department"]) < 2:
+            errors.append("Department must be at least 2 characters.")
+        if not form_data["programme"]:
+            errors.append("Programme is required.")
+
+        new_password = request.form.get("new_password", "").strip()
+        confirm_password = request.form.get("confirm_password", "").strip()
+        current_password = request.form.get("current_password", "").strip()
+
+        if new_password or confirm_password or current_password:
+            if not current_password:
+                errors.append("Current password is required when changing your password.")
+            elif not check_password_hash(user.password, current_password):
+                errors.append("Current password is incorrect.")
+            if len(new_password) < 8:
+                errors.append("New password must be at least 8 characters.")
+            if new_password and new_password != confirm_password:
+                errors.append("New password and confirm password do not match.")
+
+        uploaded_file = request.files.get("profile_picture")
+        profile_picture_changed = False
+        if uploaded_file and uploaded_file.filename:
+            try:
+                validate_profile_picture(uploaded_file)
+                profile_picture_changed = True
+            except ValueError as exc:
+                errors.append(str(exc))
+
+        if errors:
+            for error in errors:
+                flash(error, "danger")
+            return render_template("edit_profile.html", user=user, form_data=form_data, errors=errors)
+
+        user.full_name = form_data["full_name"]
+        user.faculty = form_data["faculty"]
+        user.department = form_data["department"]
+        user.programme = form_data["programme"]
+
+        if new_password:
+            user.password = generate_password_hash(new_password)
+
+        if profile_picture_changed:
+            save_profile_picture(user, uploaded_file)
+
+        session["user_name"] = user.full_name
+        db.session.commit()
+        flash("Profile updated successfully.", "success")
+        return redirect(url_for("edit_profile"))
+
+    return render_template("edit_profile.html", user=user, form_data=form_data, errors=[])
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  PDF DOWNLOAD
