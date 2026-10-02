@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Email Code Login — Z GRADE CALC</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; background: #0b1730; color: #e7efff; font-family: Arial, sans-serif; }
+    .card { width: min(100%, 420px); padding: 32px; border: 1px solid rgba(147, 181, 255, .18); border-radius: 14px; background: #12213f; box-shadow: 0 24px 70px rgba(0, 0, 0, .35); }
+    h1 { margin: 0 0 8px; font-size: 1.6rem; }
+    p { color: #aebddd; line-height: 1.55; }
+    .field { margin: 22px 0 16px; }
+    label { display: block; margin-bottom: 8px; font-size: .9rem; font-weight: 600; }
+    input { width: 100%; padding: 13px 14px; border: 1px solid #385078; border-radius: 8px; background: #0b1730; color: #fff; font: inherit; }
+    input:focus { outline: 2px solid #60a5fa; outline-offset: 2px; }
+    button { width: 100%; padding: 13px 16px; border: 0; border-radius: 8px; background: linear-gradient(110deg, #2563eb, #7dd3fc); color: #07142a; font: inherit; font-weight: 700; cursor: pointer; }
+    button:focus-visible, a:focus-visible { outline: 2px solid #bae6fd; outline-offset: 3px; }
+    .flash { margin: 0 0 12px; padding: 11px 13px; border: 1px solid; border-radius: 8px; line-height: 1.4; }
+    .flash-danger, .flash-error { color: #fecaca; border-color: #7f1d1d; background: #451a1a; }
+    .flash-success { color: #bbf7d0; border-color: #166534; background: #123322; }
+    .flash-warning { color: #fde68a; border-color: #854d0e; background: #3b2a11; }
+    .flash-info { color: #bfdbfe; border-color: #1e40af; background: #172b50; }
+    .link { display: block; margin-top: 18px; color: #93c5fd; text-align: center; text-decoration: none; }
+    .link:hover { color: #dbeafe; text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Log in with an email code</h1>
+    <p>Enter your account email address. If it is registered, we will send a 6-digit login code.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="flash flash-{{ category }}" role="status">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('login_otp') }}">
+      <div class="field">
+        <label for="email">Email address</label>
+        <input type="email" id="email" name="email" value="{{ request.form.get('email', '') }}" autocomplete="email" required />
+      </div>
+      <button type="submit">Send code</button>
+    </form>
+    <a class="link" href="{{ url_for('login') }}">Back to password login</a>
+  </main>
+</body>
+</html>

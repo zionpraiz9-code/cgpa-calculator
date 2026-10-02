@@ -6,3 +6,6 @@ users_fixed.db
 *.sqlite3
 
 .env
+instance/
+__pycache__/
+static/uploads/

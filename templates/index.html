@@ -188,6 +188,15 @@
       </div>
       {% endif %}
 
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="alert alert-error">
+            <strong>Please fix the following:</strong>
+            <ul>{% for category, message in messages %}<li>{{ message }}</li>{% endfor %}</ul>
+          </div>
+        {% endif %}
+      {% endwith %}
+
       <form action="/courses" method="POST" class="form-grid">
 
         {% for s in range(1, num_semesters + 1) %}
@@ -249,6 +258,9 @@
 
         {# number of pre-generated rows for this semester #}
         {% set preset = course_counts[s - 1] if course_counts is defined and course_counts|length >= s else 1 %}
+        {% set posted_count = request.form.get('sem_' ~ s ~ '_num_courses') %}
+        {% set row_count = posted_count|int if posted_count else preset %}
+        {% if row_count < 1 %}{% set row_count = preset %}{% endif %}
 
         <div class="semester-block" id="semester-{{ s }}">
           <div class="semester-header">
@@ -260,7 +272,7 @@
           <input type="hidden"
                  name="sem_{{ s }}_num_courses"
                  id="sem_{{ s }}_count"
-                 value="{{ preset }}" />
+                 value="{{ row_count }}" />
 
           <div class="table-wrap">
             <table class="course-table" id="table-sem-{{ s }}">
@@ -274,54 +286,70 @@
                 </tr>
               </thead>
               <tbody>
-                {% for c in range(1, preset + 1) %}
+                {% for c in range(1, row_count + 1) %}
+                {% set row_mode = request.form.get('sem_' ~ s ~ '_course_' ~ c ~ '_input_mode', 'score')|lower %}
+                {% if row_mode not in ['score', 'grade'] %}{% set row_mode = 'score' %}{% endif %}
                 <tr class="course-row">
                   <td class="row-num">{{ c }}</td>
                   <td>
                     <input type="text"
                            name="sem_{{ s }}_course_{{ c }}_code"
                            placeholder="e.g. ENG{{ 300 + c }}"
+                           value="{{ request.form.get('sem_' ~ s ~ '_course_' ~ c ~ '_code', '') }}"
                            class="tbl-input course-code-input" />
                   </td>
                   <td>
                     <input type="number"
                            name="sem_{{ s }}_course_{{ c }}_unit"
                            min="1" max="6" placeholder="3"
+                           value="{{ request.form.get('sem_' ~ s ~ '_course_' ~ c ~ '_unit', '') }}"
                            class="tbl-input tbl-num" required />
                   </td>
                   <td>
                     <div class="course-input-controls">
                       <input type="hidden" name="sem_{{ s }}_course_{{ c }}_input_mode"
-                             value="score" class="input-mode-value" />
+                             value="{{ row_mode }}" class="input-mode-value" />
+                       <input type="hidden" name="sem_{{ s }}_course_{{ c }}_score_restore"
+                         value="{{ request.form.get('sem_' ~ s ~ '_course_' ~ c ~ '_score', request.form.get('sem_' ~ s ~ '_course_' ~ c ~ '_score_restore', '')) }}"
+                         class="score-restore-value" />
+                       <input type="hidden" name="sem_{{ s }}_course_{{ c }}_grade_restore"
+                         value="{{ request.form.get('sem_' ~ s ~ '_course_' ~ c ~ '_grade', request.form.get('sem_' ~ s ~ '_course_' ~ c ~ '_grade_restore', '')) }}"
+                         class="grade-restore-value" />
                       <div class="input-mode-toggle" role="group" aria-label="Score or grade input">
-                        <button type="button" class="mode-button is-active" data-mode="score"
-                                aria-pressed="true" onclick="toggleCourseInputMode(this)">Score</button>
-                        <button type="button" class="mode-button" data-mode="grade"
-                                aria-pressed="false" onclick="toggleCourseInputMode(this)">Grade</button>
+                        <button type="button" class="mode-button{% if row_mode == 'score' %} is-active{% endif %}" data-mode="score"
+                          aria-label="Use score input" aria-pressed="{{ 'true' if row_mode == 'score' else 'false' }}"
+                          onclick="toggleCourseInputMode(this)">Score</button>
+                        <button type="button" class="mode-button{% if row_mode == 'grade' %} is-active{% endif %}" data-mode="grade"
+                          aria-label="Use grade input" aria-pressed="{{ 'true' if row_mode == 'grade' else 'false' }}"
+                          onclick="toggleCourseInputMode(this)">Grade</button>
                       </div>
 
-                      <div class="score-wrapper">
+                            <div class="score-wrapper"{% if row_mode == 'grade' %} hidden{% endif %}>
                         <input type="number"
                                name="sem_{{ s }}_course_{{ c }}_score"
-                               min="0" max="100" placeholder="75"
-                               class="tbl-input tbl-num score-input" required />
+                               min="0" max="100" step="1" placeholder="75"
+                               value="{{ request.form.get('sem_' ~ s ~ '_course_' ~ c ~ '_score', request.form.get('sem_' ~ s ~ '_course_' ~ c ~ '_score_restore', '')) }}"
+                               class="tbl-input tbl-num score-input"
+                               {% if row_mode == 'score' %}required{% else %}disabled{% endif %} />
                       </div>
 
-                      <div class="grade-wrapper" hidden>
+                            <div class="grade-wrapper"{% if row_mode == 'score' %} hidden{% endif %}>
                         <select name="sem_{{ s }}_course_{{ c }}_grade"
                                 class="tbl-input grade-select"
-                                aria-label="Grade">
-                          <option value="">Grade</option>
-                          <option value="A">A</option>
-                          <option value="B">B</option>
-                          <option value="C">C</option>
-                          <option value="D">D</option>
-                          <option value="E">E</option>
-                          <option value="F">F</option>
+                          aria-label="Grade"
+                          {% if row_mode == 'grade' %}required{% else %}disabled{% endif %}>
+                          {% set selected_grade = request.form.get('sem_' ~ s ~ '_course_' ~ c ~ '_grade', request.form.get('sem_' ~ s ~ '_course_' ~ c ~ '_grade_restore', '')) %}
+                          <option value=""{% if not selected_grade %} selected{% endif %}>Select grade</option>
+                          <option value="A"{% if selected_grade == 'A' %} selected{% endif %}>A</option>
+                          <option value="B"{% if selected_grade == 'B' %} selected{% endif %}>B</option>
+                          <option value="C"{% if selected_grade == 'C' %} selected{% endif %}>C</option>
+                          <option value="D"{% if selected_grade == 'D' %} selected{% endif %}>D</option>
+                          <option value="E"{% if selected_grade == 'E' %} selected{% endif %}>E</option>
+                          <option value="F"{% if selected_grade == 'F' %} selected{% endif %}>F</option>
                         </select>
                       </div>
                     </div>
-                    <small class="input-hint">Choose an entry mode and provide either a score or a grade.</small>
+                    <small class="input-hint">Enter a score (0 to 100) or choose a grade, depending on the mode selected.</small>
                   </td>
                   <td>
                     <button type="button" class="btn-icon btn-del"
@@ -480,11 +508,14 @@
       if (!row) return;
 
       const mode = buttonEl.dataset.mode;
+      if (mode !== 'score' && mode !== 'grade') return;
       const modeInput = row.querySelector('.input-mode-value');
       const scoreWrapper = row.querySelector('.score-wrapper');
       const gradeWrapper = row.querySelector('.grade-wrapper');
       const scoreInput = row.querySelector('.score-input');
       const gradeSelect = row.querySelector('.grade-select');
+      const scoreRestore = row.querySelector('.score-restore-value');
+      const gradeRestore = row.querySelector('.grade-restore-value');
       const modeButtons = row.querySelectorAll('.mode-button');
 
       if (modeInput) modeInput.value = mode;
@@ -497,16 +528,38 @@
         if (scoreWrapper) scoreWrapper.hidden = true;
         if (gradeWrapper) gradeWrapper.hidden = false;
         if (scoreInput) scoreInput.required = false;
+        if (scoreInput) scoreInput.disabled = true;
         if (gradeSelect) gradeSelect.required = true;
-        if (scoreInput) scoreInput.value = '';
+        if (gradeSelect) gradeSelect.disabled = false;
       } else {
         if (scoreWrapper) scoreWrapper.hidden = false;
         if (gradeWrapper) gradeWrapper.hidden = true;
         if (scoreInput) scoreInput.required = true;
+        if (scoreInput) scoreInput.disabled = false;
         if (gradeSelect) gradeSelect.required = false;
-        if (gradeSelect) gradeSelect.value = '';
+        if (gradeSelect) gradeSelect.disabled = true;
       }
     }
+
+    function bindCourseRestoreValues(row) {
+      const scoreInput = row.querySelector('.score-input');
+      const gradeSelect = row.querySelector('.grade-select');
+      const scoreRestore = row.querySelector('.score-restore-value');
+      const gradeRestore = row.querySelector('.grade-restore-value');
+
+      if (scoreInput && scoreRestore) {
+        scoreInput.addEventListener('input', () => {
+          scoreRestore.value = scoreInput.value;
+        });
+      }
+      if (gradeSelect && gradeRestore) {
+        gradeSelect.addEventListener('change', () => {
+          gradeRestore.value = gradeSelect.value;
+        });
+      }
+    }
+
+    document.querySelectorAll('.course-row').forEach(bindCourseRestoreValues);
 
     function addCourse(semNum) {
       const tbody   = document.querySelector(`#table-sem-${semNum} tbody`);
@@ -535,25 +588,31 @@
           <div class="course-input-controls">
             <input type="hidden" name="sem_${semNum}_course_${newIdx}_input_mode"
                    value="score" class="input-mode-value" />
+                 <input type="hidden" name="sem_${semNum}_course_${newIdx}_score_restore"
+                   value="" class="score-restore-value" />
+                 <input type="hidden" name="sem_${semNum}_course_${newIdx}_grade_restore"
+                   value="" class="grade-restore-value" />
             <div class="input-mode-toggle" role="group" aria-label="Score or grade input">
-              <button type="button" class="mode-button is-active" data-mode="score"
-                      aria-pressed="true" onclick="toggleCourseInputMode(this)">Score</button>
+                    <button type="button" class="mode-button is-active" data-mode="score"
+                      aria-label="Use score input" aria-pressed="true"
+                      onclick="toggleCourseInputMode(this)">Score</button>
               <button type="button" class="mode-button" data-mode="grade"
-                      aria-pressed="false" onclick="toggleCourseInputMode(this)">Grade</button>
+                      aria-label="Use grade input" aria-pressed="false"
+                      onclick="toggleCourseInputMode(this)">Grade</button>
             </div>
 
             <div class="score-wrapper" style="display:flex;gap:6px;align-items:center;">
               <input type="number"
                      name="sem_${semNum}_course_${newIdx}_score"
-                     min="0" max="100" placeholder="70"
+                     min="0" max="100" step="1" placeholder="75"
                      class="tbl-input tbl-num score-input" required />
             </div>
 
             <div class="grade-wrapper" hidden>
               <select name="sem_${semNum}_course_${newIdx}_grade"
                       class="tbl-input grade-select"
-                      aria-label="Grade">
-                <option value="">Grade</option>
+                      aria-label="Grade" disabled>
+                <option value="" selected>Select grade</option>
                 <option value="A">A</option>
                 <option value="B">B</option>
                 <option value="C">C</option>
@@ -571,6 +630,11 @@
         </td>
       `;
       tbody.appendChild(tr);
+      bindCourseRestoreValues(tr);
+      const scoreInput = tr.querySelector('.score-input');
+      const gradeSelect = tr.querySelector('.grade-select');
+      if (scoreInput) scoreInput.disabled = false;
+      if (gradeSelect) gradeSelect.disabled = true;
       requestAnimationFrame(() => tr.classList.remove("row-enter"));
     }
 

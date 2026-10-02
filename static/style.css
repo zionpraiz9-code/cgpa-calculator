@@ -397,6 +397,8 @@ input::placeholder { color: var(--ink-3); }
 }
 .score-wrapper,
 .grade-wrapper { display: flex; align-items: center; gap: 6px; }
+.score-wrapper[hidden],
+.grade-wrapper[hidden] { display: none; }
 .grade-select { width: 90px; }
 .input-hint {
   color: var(--ink-3);

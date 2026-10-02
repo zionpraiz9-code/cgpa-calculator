@@ -1,11 +1,13 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
 import re
 import json
 import secrets
+import requests
+from html import escape
 from io import BytesIO
 from datetime import datetime, timedelta
 from flask import (Flask, render_template, request, session,
@@ -28,16 +30,23 @@ from reportlab.lib.enums import TA_CENTER
 #  APP & DATABASE CONFIGURATION
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _clean_env(name: str, default: str = "") -> str:
+    return os.environ.get(name, default).strip().strip('"').strip("'").strip()
+
+
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "change-this-in-production-please")
+app.secret_key = _clean_env("SECRET_KEY", "change-this-in-production-please")
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
-app.config["DEV_MODE"] = os.environ.get("DEV_MODE", "false").lower() in ("1", "true", "yes")
-app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
-app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", "587"))
-app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME", "")
-app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD", "")
-app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER", app.config["MAIL_USERNAME"])
-app.config["MAIL_USE_TLS"] = os.environ.get("MAIL_USE_TLS", "true").lower() in ("1", "true", "yes")
+app.config["DEV_MODE"] = _clean_env("DEV_MODE", "false").lower() in ("1", "true", "yes")
+app.config["MAIL_PROVIDER"] = _clean_env("MAIL_PROVIDER", "smtp").lower()
+app.config["BREVO_API_KEY"] = _clean_env("BREVO_API_KEY")
+app.config["MAIL_SERVER"] = _clean_env("MAIL_SERVER", "smtp.gmail.com")
+app.config["MAIL_PORT"] = int(_clean_env("MAIL_PORT", "587"))
+app.config["MAIL_USERNAME"] = _clean_env("MAIL_USERNAME")
+app.config["MAIL_PASSWORD"] = _clean_env("MAIL_PASSWORD")
+app.config["MAIL_DEFAULT_SENDER"] = _clean_env("MAIL_DEFAULT_SENDER", app.config["MAIL_USERNAME"])
+app.config["MAIL_SENDER_NAME"] = _clean_env("MAIL_SENDER_NAME", "Z GRADE CALC")
+app.config["MAIL_USE_TLS"] = _clean_env("MAIL_USE_TLS", "true").lower() in ("1", "true", "yes")
 app.config["MAX_CONTENT_LENGTH"] = 3 * 1024 * 1024
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -83,6 +92,7 @@ class EmailOTP(db.Model):
     expires_at = db.Column(db.DateTime, nullable=False)
     used       = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    attempts   = db.Column(db.Integer, default=0, nullable=False)
 
     user = db.relationship("User", backref=db.backref("email_otps", lazy=True,
                                                         cascade="all, delete-orphan"))
@@ -163,6 +173,13 @@ with app.app_context():
             ))
             conn.commit()
 
+        otp_cols = [c["name"] for c in sa_inspect(db.engine).get_columns("email_otps")]
+        if "attempts" not in otp_cols:
+            conn.execute(text(
+                "ALTER TABLE email_otps ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0"
+            ))
+            conn.commit()
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  CONSTANTS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -170,6 +187,9 @@ with app.app_context():
 EMAIL_PATTERN  = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MATRIC_PATTERN = re.compile(r"^[A-Z0-9/\-]{3,20}$")
 SCHOOL_EMAIL_DOMAIN = "@tech-u.edu.ng"
+OTP_EXPIRY_MINUTES = 10
+OTP_MAX_ATTEMPTS = 5
+OTP_RESEND_SECONDS = 60
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  AUTH DECORATOR
@@ -187,6 +207,83 @@ def login_required(f):
             return redirect(url_for("login"))
         return f(*args, **kwargs)
     return decorated
+
+
+def find_user_by_email(email: str):
+    normalized_email = email.strip().lower()
+    if not normalized_email:
+        return None
+    return User.query.filter(db.func.lower(User.email) == normalized_email).first()
+
+
+def _html_email(body: str) -> str:
+    escaped_body = escape(body)
+    linked_body = re.sub(
+        r"(https?://[^\s<]+)",
+        r'<a href="\1" style="color:#2563eb;word-break:break-word">\1</a>',
+        escaped_body,
+    )
+    return (
+        '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;'
+        'color:#1f2937">' + linked_body.replace("\n", "<br>\n") + "</div>"
+    )
+
+
+def send_email(subject: str, recipient: str, body: str, dev_hint: str = ""):
+    if app.config["DEV_MODE"]:
+        app.logger.info("DEV_MODE suppressed email: %s to %s", subject, recipient)
+        if dev_hint:
+            flash(f"[DEV MODE] {dev_hint}", "info")
+        return
+
+    provider = app.config["MAIL_PROVIDER"]
+    if provider == "brevo_api":
+        if not app.config["BREVO_API_KEY"]:
+            raise RuntimeError("Brevo API key is not configured.")
+        if not app.config["MAIL_DEFAULT_SENDER"]:
+            raise RuntimeError("MAIL_DEFAULT_SENDER is not configured.")
+
+        response = requests.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={
+                "api-key": app.config["BREVO_API_KEY"],
+                "accept": "application/json",
+                "content-type": "application/json",
+            },
+            json={
+                "sender": {
+                    "name": app.config["MAIL_SENDER_NAME"],
+                    "email": app.config["MAIL_DEFAULT_SENDER"],
+                },
+                "to": [{"email": recipient}],
+                "subject": subject,
+                "textContent": body,
+                "htmlContent": _html_email(body),
+            },
+            timeout=15,
+        )
+        if response.status_code not in (200, 201):
+            raise RuntimeError(
+                f"Brevo API returned status {response.status_code}: {response.text[:300]}"
+            )
+        return
+
+    if provider == "smtp":
+        if not app.config["MAIL_USERNAME"] or not app.config["MAIL_PASSWORD"]:
+            raise RuntimeError("SMTP credentials are not configured.")
+        if not app.config["MAIL_DEFAULT_SENDER"]:
+            raise RuntimeError("MAIL_DEFAULT_SENDER is not configured.")
+        message = Message(
+            subject=subject,
+            sender=(app.config["MAIL_SENDER_NAME"], app.config["MAIL_DEFAULT_SENDER"]),
+            recipients=[recipient],
+            body=body,
+            html=_html_email(body),
+        )
+        mail.send(message)
+        return
+
+    raise RuntimeError(f"Unsupported MAIL_PROVIDER: {provider!r}. Use 'brevo_api' or 'smtp'.")
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  PROFILE PICTURE & AVATAR HELPERS
@@ -389,6 +486,7 @@ def validate_registration(form) -> dict:
     elif User.query.filter_by(matric=matric).first(): errors["matric"] = "This matric number is already registered."
     if not email:               errors["email"]       = "Email address is required."
     elif not EMAIL_PATTERN.match(email): errors["email"] = "Enter a valid email address."
+    elif find_user_by_email(email): errors["email"] = "This email is already registered."
     elif not email.lower().endswith(SCHOOL_EMAIL_DOMAIN):
         errors["email"] = f"Registration is restricted to {SCHOOL_EMAIL_DOMAIN} email addresses."
     if not faculty:             errors["faculty"]     = "Please select your faculty."
@@ -412,40 +510,94 @@ def parse_positive_int(value, label: str) -> tuple:
 
 
 def issue_email_otp(user: User) -> str:
-    """Invalidate older codes, create a fresh code, and deliver it."""
+    """Invalidate older codes, create a fresh verification code, and deliver it."""
     EmailOTP.query.filter_by(user_id=user.id, used=False).update({"used": True})
     otp_code = f"{secrets.randbelow(1_000_000):06d}"
     otp = EmailOTP(
         user_id=user.id,
         otp_code=otp_code,
-        expires_at=datetime.utcnow() + timedelta(minutes=10),
+        expires_at=datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MINUTES),
     )
     db.session.add(otp)
     db.session.commit()
-
-    if app.config["DEV_MODE"]:
-        app.logger.info("DEV_MODE OTP for %s: %s", user.email, otp_code)
-        flash(f"[DEV MODE] Your verification code is {otp_code}", "info")
-        return otp_code
-
-    if not app.config["MAIL_USERNAME"] or not app.config["MAIL_PASSWORD"]:
-        raise RuntimeError("SMTP credentials are not configured.")
-
-    message = Message(
-        subject="Your Z GRADE CALC verification code",
-        sender=("Z GRADE CALC", app.config["MAIL_DEFAULT_SENDER"]),
-        recipients=[user.email],
-        body=(
-            f"Your Z GRADE CALC verification code is {otp_code}. "
-            "It expires in 10 minutes."
-        ),
+    send_email(
+        "Your Z GRADE CALC verification code",
+        user.email,
+        f"Your Z GRADE CALC verification code is {otp_code}. It expires in {OTP_EXPIRY_MINUTES} minutes.",
+        dev_hint=f"Your verification code is {otp_code}",
     )
-    try:
-        mail.send(message)
-    except Exception as exc:
-        print(f"OTP email sending failed: {type(exc).__name__}: {exc}", flush=True)
-        raise
     return otp_code
+
+
+def send_login_otp(user: User) -> bool:
+    """Send a login code unless this user is still inside the resend cooldown."""
+    newest_otp = (EmailOTP.query
+                  .filter_by(user_id=user.id, used=False)
+                  .order_by(EmailOTP.created_at.desc())
+                  .first())
+    now = datetime.utcnow()
+    if newest_otp and (now - newest_otp.created_at).total_seconds() < OTP_RESEND_SECONDS:
+        return False
+
+    EmailOTP.query.filter_by(user_id=user.id, used=False).update({"used": True})
+    otp_code = f"{secrets.randbelow(1_000_000):06d}"
+    otp = EmailOTP(
+        user_id=user.id,
+        otp_code=otp_code,
+        expires_at=now + timedelta(minutes=OTP_EXPIRY_MINUTES),
+    )
+    db.session.add(otp)
+    db.session.commit()
+    send_email(
+        "Your Z GRADE CALC login code",
+        user.email,
+        f"Your Z GRADE CALC login code is {otp_code}. It expires in {OTP_EXPIRY_MINUTES} minutes.",
+        dev_hint=f"Your login code is {otp_code}",
+    )
+    return True
+
+
+def check_and_consume_otp(user: User, submitted: str) -> tuple[bool, str]:
+    if not isinstance(submitted, str) or not re.fullmatch(r"[0-9]{6}", submitted):
+        return False, "Enter the 6-digit code from your email."
+
+    otp = (EmailOTP.query
+           .filter_by(user_id=user.id, used=False)
+           .order_by(EmailOTP.created_at.desc())
+           .first())
+    if not otp:
+        return False, "That code is invalid or has expired. Request a new code."
+    if otp.expires_at <= datetime.utcnow():
+        otp.used = True
+        db.session.commit()
+        return False, "That code has expired. Request a new code."
+    if otp.attempts >= OTP_MAX_ATTEMPTS:
+        otp.used = True
+        db.session.commit()
+        return False, "Too many incorrect attempts. Request a new code."
+
+    if not secrets.compare_digest(otp.otp_code, submitted):
+        otp.attempts += 1
+        if otp.attempts >= OTP_MAX_ATTEMPTS:
+            otp.used = True
+            message = "Too many incorrect attempts. Request a new code."
+        else:
+            message = "That code is incorrect. Try again."
+        db.session.commit()
+        return False, message
+
+    otp.used = True
+    db.session.commit()
+    return True, "Code verified."
+
+
+def start_user_session(user: User) -> None:
+    session.clear()
+    session.permanent = True
+    session["logged_in"] = True
+    session["user_id"] = user.id
+    session["user_matric"] = user.matric
+    session["user_name"] = user.full_name
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  REPORTLAB PDF GENERATOR
@@ -580,14 +732,17 @@ def login():
     if request.method == "GET":
         return render_template("login.html")
 
-    matric = request.form.get("matric", "").strip().upper()
+    identifier = request.form.get("matric", "").strip()
     pw     = request.form.get("password", "")
 
-    if not matric or not pw:
-        flash("Matric number and password are required.", "danger")
+    if not identifier or not pw:
+        flash("Matric number or email and password are required.", "danger")
         return render_template("login.html")
 
-    user = User.query.filter_by(matric=matric).first()
+    if "@" in identifier:
+        user = find_user_by_email(identifier)
+    else:
+        user = User.query.filter_by(matric=identifier.upper()).first()
     if not user or not check_password_hash(user.password, pw):
         flash("Invalid matric number or password.", "danger")
         return render_template("login.html")
@@ -616,6 +771,84 @@ def login():
 
     flash(f"Welcome back, {user.full_name}!", "success")
     return redirect(url_for("dashboard"))
+
+
+@app.route("/login-otp", methods=["GET", "POST"])
+def login_otp():
+    if session.get("logged_in"):
+        return redirect(url_for("dashboard"))
+
+    if request.method == "GET":
+        return render_template("login_otp.html")
+
+    email = request.form.get("email", "").strip()
+    if not email or not EMAIL_PATTERN.fullmatch(email):
+        flash("Please enter a valid email address.", "danger")
+        return render_template("login_otp.html")
+
+    session["otp_login_email"] = email
+    user = find_user_by_email(email)
+    if user:
+        try:
+            send_login_otp(user)
+        except Exception:
+            app.logger.exception("Could not send login OTP to %s", user.email)
+            flash("We could not send a code right now. Please try again later.", "danger")
+            return render_template("login_otp.html")
+
+    flash("If that email is registered, a 6-digit code has been sent to it.", "info")
+    return redirect(url_for("verify_login_otp"))
+
+
+@app.route("/login-otp/verify", methods=["GET", "POST"])
+def verify_login_otp():
+    email = session.get("otp_login_email")
+    if not email:
+        return redirect(url_for("login_otp"))
+    if session.get("logged_in"):
+        return redirect(url_for("dashboard"))
+
+    user = find_user_by_email(email)
+    if request.method == "POST":
+        if not user:
+            flash("That code is invalid or has expired. Request a new code.", "danger")
+            return render_template("login_otp_verify.html", email=email)
+
+        ok, message = check_and_consume_otp(user, request.form.get("otp_code", ""))
+        if not ok:
+            flash(message, "danger")
+            return render_template("login_otp_verify.html", email=email)
+
+        if not user.is_verified:
+            user.is_verified = True
+            db.session.commit()
+        start_user_session(user)
+        flash(f"Welcome back, {user.full_name}!", "success")
+        return redirect(url_for("dashboard"))
+
+    return render_template("login_otp_verify.html", email=email)
+
+
+@app.route("/login-otp/resend", methods=["POST"])
+def resend_login_otp():
+    email = session.get("otp_login_email")
+    if not email:
+        return redirect(url_for("login_otp"))
+
+    user = find_user_by_email(email)
+    if user:
+        try:
+            sent = send_login_otp(user)
+        except Exception:
+            app.logger.exception("Could not resend login OTP to %s", user.email)
+            flash("We could not send a new code right now. Please try again later.", "danger")
+            return redirect(url_for("verify_login_otp"))
+        if not sent:
+            flash("Please wait 60 seconds before requesting another code.", "warning")
+            return redirect(url_for("verify_login_otp"))
+
+    flash("If that email is registered, a new code has been sent.", "info")
+    return redirect(url_for("verify_login_otp"))
 
 
 @app.route("/logout")
@@ -668,7 +901,7 @@ def register():
 @app.route("/verify-otp", methods=["GET", "POST"])
 def verify_otp():
     user_id = session.get("pending_verification_user_id")
-    user = User.query.get(user_id) if user_id else None
+    user = db.session.get(User, user_id) if user_id else None
     if not user:
         flash("Please register or log in before verifying your email.", "warning")
         return redirect(url_for("login"))
@@ -677,28 +910,16 @@ def verify_otp():
         return redirect(url_for("dashboard"))
 
     if request.method == "POST":
-        submitted_code = request.form.get("otp_code", "").strip()
-        latest_otp = (EmailOTP.query
-                      .filter_by(user_id=user.id, used=False)
-                      .order_by(EmailOTP.created_at.desc())
-                      .first())
-
-        if not latest_otp or submitted_code != latest_otp.otp_code:
-            flash("The verification code is invalid.", "danger")
-            return render_template("verify_otp.html", email=user.email)
-        if latest_otp.expires_at <= datetime.utcnow():
-            flash("The verification code has expired. Please request a new code.", "warning")
+        submitted_code = request.form.get("otp_code", "")
+        ok, message = check_and_consume_otp(user, submitted_code)
+        if not ok:
+            flash(message, "danger")
             return render_template("verify_otp.html", email=user.email)
 
-        latest_otp.used = True
         user.is_verified = True
         db.session.commit()
         session.pop("pending_verification_user_id", None)
-        session.permanent      = True
-        session["logged_in"]   = True
-        session["user_id"]     = user.id
-        session["user_matric"] = user.matric
-        session["user_name"]   = user.full_name
+        start_user_session(user)
         flash("Email verified successfully. Welcome to your dashboard!", "success")
         return redirect(url_for("dashboard"))
 
@@ -708,7 +929,7 @@ def verify_otp():
 @app.route("/resend-otp", methods=["POST"])
 def resend_otp():
     user_id = session.get("pending_verification_user_id")
-    user = User.query.get(user_id) if user_id else None
+    user = db.session.get(User, user_id) if user_id else None
     if not user or user.is_verified:
         flash("Please register or log in before requesting a verification code.", "warning")
         return redirect(url_for("login"))
@@ -740,25 +961,39 @@ def forgot_password():
         flash("Please enter a valid email address.", "danger")
         return render_template("forgot_password.html")
 
-    user = User.query.filter_by(email=email).first()
+    user = find_user_by_email(email)
     if user:
-        PasswordReset.query.filter_by(user_id=user.id, used=False).delete()
-        db.session.commit()
+        now = datetime.utcnow()
+        cooldown_expiry = now + timedelta(minutes=59)
+        recent_reset = (PasswordReset.query
+                        .filter_by(user_id=user.id, used=False)
+                        .filter(PasswordReset.expires_at > cooldown_expiry)
+                        .first())
+        if not recent_reset:
+            PasswordReset.query.filter_by(user_id=user.id, used=False).delete()
+            token = secrets.token_urlsafe(64)
+            reset = PasswordReset(
+                user_id=user.id,
+                token=token,
+                expires_at=now + timedelta(hours=1),
+                used=False,
+            )
+            db.session.add(reset)
+            db.session.commit()
 
-        token = secrets.token_urlsafe(64)
-        reset = PasswordReset(
-            user_id    = user.id,
-            token      = token,
-            expires_at = datetime.utcnow() + timedelta(hours=1),
-        )
-        db.session.add(reset)
-        db.session.commit()
+            reset_link = url_for("reset_password", token=token, _external=True)
+            try:
+                send_email(
+                    "Reset your Z GRADE CALC password",
+                    user.email,
+                    "Use the following link to reset your password. This link expires in one hour:\n\n"
+                    f"{reset_link}\n\nIf you did not request this, you can ignore this email.",
+                    dev_hint=f"Reset link: {reset_link}",
+                )
+            except Exception:
+                app.logger.exception("Could not send password reset email to %s", user.email)
 
-        reset_link = url_for("reset_password", token=token, _external=True)
-        if app.config.get("DEV_MODE"):
-            flash(f"[DEV MODE] Reset link: {reset_link}", "info")
-
-    flash("If that email exists, a reset link has been sent.", "success")
+    flash("If that email is registered, a reset link has been sent to it.", "success")
     return redirect(url_for("login"))
 
 
